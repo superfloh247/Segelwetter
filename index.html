@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Segelwetter">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <title>Segelwetter</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN7hmEBrz5fR0CfaJHGvTS3BdEIIgB/Uw="
+          crossorigin=""/>
+</head>
+<body>
+    <div class="app">
+        <header class="header">
+            <h1>Segelwetter</h1>
+        </header>
+
+        <main class="main">
+            <div id="map"></div>
+            
+            <div class="weather-panel" id="weatherPanel">
+                <div class="location-header">
+                    <h2 id="locationName">Standort</h2>
+                    <button id="favoriteBtn" class="favorite-btn">⭐</button>
+                </div>
+                
+                <div class="weather-data">
+                    <div class="temp-wind">
+                        <div class="temperature">
+                            <span id="temperature">--</span>
+                            <span class="unit">°C</span>
+                        </div>
+                        <div class="wind-info">
+                            <div class="wind-direction">
+                                <span id="windDirection">--</span>
+                            </div>
+                            <div class="wind-speed">
+                                <span id="windSpeed">--</span>
+                                <span class="unit"> km/h</span>
+                            </div>
+                            <div class="wind-gusts">
+                                <span id="windGusts">--</span>
+                                <span class="unit"> km/h</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bookmarks-section">
+                <h3>Favoriten</h3>
+                <div id="bookmarksList" class="bookmarks-list">
+                    <!-- Bookmarks will be listed here -->
+                </div>
+            </div>
+
+            <div class="add-bookmark">
+                <button id="addBookmarkBtn" class="add-btn">Speichern</button>
+            </div>
+        </main>
+
+        <div class="bottom-bar">
+            <button id="searchBtn" class="ios-button">
+                <span class="button-text">Ort suchen</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal for location search -->
+    <div id="searchModal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Ort suchen</h2>
+            <input type="text" id="searchInput" placeholder="Latitude, Longitude oder Name eingeben" autocomplete="off">
+            <button id="searchSubmit" class="ios-button primary">Suchen</button>
+        </div>
+    </div>
+
+    <!-- Modal for add bookmark -->
+    <div id="addBookmarkModal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Favorit hinzufügen</h2>
+            <input type="text" id="bookmarkName" placeholder="Name des Standorts">
+            <button id="saveBookmarkBtn" class="ios-button primary">Speichern</button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQgchXMTMAUGfBuuDKhRgBOu8GXQMItqPfVhkGnWA="
+            crossorigin=""></script>
+    <script src="app.js"></script>
+</body>
+</html>
