@@ -3,6 +3,8 @@
 const STORAGE_KEY_LAST_LOCATION = 'segelwetter:lastLocation';
 const FORECAST_HOURS = 7 * 24;
 
+const STORAGE_KEY_FAVORITES = 'segelwetter:favorites';
+
 const weatherData = {
     location: 'Standort unbekannt',
     coords: {
@@ -27,6 +29,88 @@ function saveLastLocation(coords, location) {
     }
 }
 
+function loadFavorites() {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY_FAVORITES);
+        return raw ? JSON.parse(raw) : [];
+    } catch (error) {
+        console.warn('Kann Favoriten nicht laden.', error);
+        return [];
+    }
+}
+
+function saveFavorites(favorites) {
+    try {
+        localStorage.setItem(STORAGE_KEY_FAVORITES, JSON.stringify(favorites));
+    } catch (error) {
+        console.warn('Kann Favoriten nicht speichern.', error);
+    }
+}
+
+function deleteFavorite(name) {
+    const favorites = loadFavorites().filter(item => item.name !== name);
+    saveFavorites(favorites);
+    renderBookmarks();
+}
+
+function renderBookmarks() {
+    if (!elements.bookmarksList) return;
+    const favorites = loadFavorites();
+    elements.bookmarksList.innerHTML = favorites.map(fav => {
+        return `
+            <button class="bookmark-item" type="button" data-name="${fav.name}">
+                <span class="bookmark-label">${fav.name}</span>
+                <span class="bookmark-remove" data-action="remove">×</span>
+            </button>
+        `;
+    }).join('');
+
+    elements.bookmarksList.querySelectorAll('.bookmark-item').forEach(button => {
+        button.addEventListener('click', async event => {
+            const actionTarget = event.target.closest('[data-action="remove"]');
+            const name = button.dataset.name;
+            if (actionTarget) {
+                event.stopPropagation();
+                const confirmed = window.confirm(`Favorit "${name}" wirklich löschen?`);
+                if (confirmed) {
+                    deleteFavorite(name);
+                }
+                return;
+            }
+            const favorite = favorites.find(item => item.name === name);
+            if (favorite) {
+                await loadWeatherForCoords(favorite.lat, favorite.lng, false);
+                weatherData.location = favorite.name;
+                displayWeather(weatherData);
+                updateSailingAdvice();
+            }
+        });
+    });
+}
+
+function addOrUpdateFavorite() {
+    const name = weatherData.location || `Lat ${weatherData.coords.lat.toFixed(6)}, Lon ${weatherData.coords.lng.toFixed(6)}`;
+    const favorites = loadFavorites();
+    const index = favorites.findIndex(item => item.name === name);
+    const entry = { name, lat: weatherData.coords.lat, lng: weatherData.coords.lng };
+    if (index >= 0) {
+        favorites[index] = entry;
+    } else {
+        favorites.push(entry);
+    }
+    saveFavorites(favorites);
+    renderBookmarks();
+}
+
+function promptLocationName() {
+    const currentLabel = weatherData.location || `Lat ${weatherData.coords.lat.toFixed(6)}, Lon ${weatherData.coords.lng.toFixed(6)}`;
+    const newName = window.prompt('Gib einen Namen für diese Koordinate ein:', currentLabel);
+    if (newName && newName.trim()) {
+        weatherData.location = newName.trim();
+        displayWeather(weatherData);
+    }
+}
+
 function loadLastLocation() {
     try {
         const raw = localStorage.getItem(STORAGE_KEY_LAST_LOCATION);
@@ -47,6 +131,11 @@ const elements = {
     windDirection: document.getElementById('windDirection'),
     temperature: document.getElementById('temperature'),
     windGusts: document.getElementById('windGusts'),
+    favoriteBtn: document.getElementById('favoriteBtn'),
+    bookmarksList: document.getElementById('bookmarksList'),
+    sailingSelectedText: document.getElementById('sailingSelectedText'),
+    sailingBaseWind: document.getElementById('sailingBaseWind'),
+    sailingGustWind: document.getElementById('sailingGustWind'),
     searchBtn: document.getElementById('searchBtn'),
     searchModal: document.getElementById('searchModal'),
     searchInput: document.getElementById('searchInput'),
@@ -371,6 +460,7 @@ function displayHourlyForecast() {
     table.innerHTML = html;
     attachHourlyForecastClickHandlers(table);
     highlightForecastColumn(selectedForecastColumn);
+    updateSelectedSailingDisplay();
 }
 
 function parseCoordinates(input) {
@@ -461,6 +551,33 @@ function updateMarkerFromSelectedColumn() {
     }
 }
 
+function updateSelectedSailingDisplay() {
+    const forecast = getForecastByColumn(selectedForecastColumn);
+    const selectedText = elements.sailingSelectedText;
+    const baseWindElement = elements.sailingBaseWind;
+    const gustWindElement = elements.sailingGustWind;
+    if (!selectedText || !baseWindElement || !gustWindElement) return;
+
+    if (!forecast) {
+        selectedText.textContent = 'Keine Auswahl.';
+        baseWindElement.textContent = '-- kt';
+        gustWindElement.textContent = '-- kt';
+        baseWindElement.style.color = '';
+        gustWindElement.style.color = '';
+        return;
+    }
+
+    selectedText.textContent = `${forecast.dateLabel}, ${forecast.hour} Uhr`;
+    const baseWind = kmhToKnots(forecast.speed);
+    const gustWind = kmhToKnots(forecast.gusts);
+    const baseColor = windSpeedBackground(baseWind);
+    const gustColor = gustSpeedBackground(gustWind);
+    baseWindElement.textContent = `${baseWind.toFixed(1)} kt`;
+    gustWindElement.textContent = `${gustWind.toFixed(1)} kt`;
+    baseWindElement.style.color = baseColor;
+    gustWindElement.style.color = gustColor;
+}
+
 function highlightForecastColumn(columnIndex) {
     selectedForecastColumn = columnIndex;
     const table = document.getElementById('hourlyForecastTable');
@@ -477,6 +594,7 @@ function highlightForecastColumn(columnIndex) {
     });
 
     updateMarkerFromSelectedColumn();
+    updateSelectedSailingDisplay();
 }
 
 function attachHourlyForecastClickHandlers(table) {
@@ -532,6 +650,12 @@ function refreshCoordsText() {
 }
 
 function setupModalHandlers() {
+    if (elements.locationName) {
+        elements.locationName.addEventListener('click', promptLocationName);
+    }
+    if (elements.favoriteBtn) {
+        elements.favoriteBtn.addEventListener('click', addOrUpdateFavorite);
+    }
     if (elements.searchBtn) {
         elements.searchBtn.addEventListener('click', () => openModal(elements.searchModal));
     }
@@ -560,6 +684,7 @@ async function initApp() {
         weatherData.coords = { lat: saved.lat, lng: saved.lng };
         weatherData.location = saved.location || weatherData.location;
     }
+    renderBookmarks();
     setupMap();
     setupModalHandlers();
     await loadWeatherForCoords(weatherData.coords.lat, weatherData.coords.lng, false);
