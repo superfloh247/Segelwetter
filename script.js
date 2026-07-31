@@ -36,12 +36,16 @@ function formatWindDirection(direction) {
     return directionMap[direction] || direction;
 }
 
+function kmhToKnots(kmh) {
+    return Number((kmh * 0.539957).toFixed(1));
+}
+
 function displayWeather(data) {
     if (elements.locationName) {
         elements.locationName.textContent = data.location;
     }
     if (elements.windSpeed) {
-        elements.windSpeed.textContent = `${data.wind.speed} km/h`;
+        elements.windSpeed.textContent = `${kmhToKnots(data.wind.speed)}`;
     }
     if (elements.windDirection) {
         elements.windDirection.textContent = formatWindDirection(data.wind.direction);
@@ -50,7 +54,7 @@ function displayWeather(data) {
         elements.temperature.textContent = `${data.temperature}`;
     }
     if (elements.windGusts) {
-        elements.windGusts.textContent = `${data.wind.gusts} km/h`;
+        elements.windGusts.textContent = `${kmhToKnots(data.wind.gusts)}`;
     }
 }
 
@@ -107,6 +111,11 @@ function setupMap() {
         attribution: '&copy; OpenStreetMap contributors'
     }).addTo(mapInstance);
     mapMarker = L.marker([52.444476, 13.675989]).addTo(mapInstance);
+    setTimeout(() => {
+        if (mapInstance) {
+            mapInstance.invalidateSize();
+        }
+    }, 0);
 }
 
 function updateMap(lat, lng) {
