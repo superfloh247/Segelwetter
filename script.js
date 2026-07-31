@@ -362,7 +362,7 @@ function createWindMarkerIcon(direction, speedKnots) {
     const deg = directionToDegrees(direction);
     const html = `
         <div class="wind-arrow-marker">
-            <div class="arrow" style="transform: rotate(${deg}deg);">➤</div>
+            <div class="arrow" style="transform: rotate(${deg - 90}deg);">➤</div>
             <span>${speedKnots} kt</span>
         </div>
     `;
