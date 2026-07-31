@@ -18,6 +18,8 @@ const weatherData = {
         gusts: 0
     },
     temperature: '--',
+    waveHeight: null,
+    seaSurfaceTemperature: null,
     hourlyForecast: []
 };
 
@@ -238,6 +240,8 @@ function buildHourlyForecastFromOpenMeteo(data) {
     const windSpeeds = data.hourly?.windspeed_10m || [];
     const windDirections = data.hourly?.winddirection_10m || [];
     const windGusts = data.hourly?.windgusts_10m || [];
+    const waveHeights = data.hourly?.wave_height || [];
+    const seaSurfaceTemps = data.hourly?.sea_surface_temperature || [];
 
     const now = new Date();
     const start = new Date(now);
@@ -256,6 +260,8 @@ function buildHourlyForecastFromOpenMeteo(data) {
             speed: Number(windSpeeds[i] ?? 0),
             gusts: Number(windGusts[i] ?? windSpeeds[i] ?? 0),
             temp: Math.round(Number(temperatures[i] ?? 0)),
+            waveHeight: Number(waveHeights[i] ?? null),
+            seaSurfaceTemp: Number(seaSurfaceTemps[i] ?? null),
             direction: degreesToDirection(directionDegrees),
             directionDegrees,
             timestamp: time.getTime()
@@ -271,7 +277,7 @@ async function fetchWeatherForCoords(lat, lng) {
     const url = new URL('https://api.open-meteo.com/v1/forecast');
     url.searchParams.set('latitude', String(lat));
     url.searchParams.set('longitude', String(lng));
-    url.searchParams.set('hourly', 'temperature_2m,windspeed_10m,winddirection_10m,windgusts_10m');
+    url.searchParams.set('hourly', 'temperature_2m,windspeed_10m,winddirection_10m,windgusts_10m,wave_height,sea_surface_temperature');
     url.searchParams.set('current_weather', 'true');
     url.searchParams.set('windspeed_unit', 'kmh');
     url.searchParams.set('timezone', 'auto');
@@ -293,6 +299,8 @@ async function loadWeatherForCoords(lat, lng, saveLocation = false) {
         weatherData.coords = { lat, lng };
         weatherData.location = `Lat ${lat.toFixed(6)}, Lon ${lng.toFixed(6)}`;
         weatherData.temperature = Number(current.temperature ?? (data.hourly?.temperature_2m?.[0] ?? 0));
+        weatherData.waveHeight = Number(data.hourly?.wave_height?.[0] ?? null);
+        weatherData.seaSurfaceTemperature = Number(data.hourly?.sea_surface_temperature?.[0] ?? null);
         weatherData.wind.speed = Number(current.windspeed ?? (data.hourly?.windspeed_10m?.[0] ?? 0));
         weatherData.wind.directionDegrees = Number(current.winddirection ?? (data.hourly?.winddirection_10m?.[0] ?? 0));
         weatherData.wind.direction = degreesToDirection(weatherData.wind.directionDegrees);
@@ -356,7 +364,7 @@ function generateHourlyForecast() {
         const gusts = Number((speed + 1 + Math.random() * 2).toFixed(1));
         const temp = 14 + Math.round(4 * Math.cos(index / 12) + Math.random() * 2);
         const direction = directions[index % directions.length];
-        return { hour, dateLabel, speed, gusts, temp, direction, timestamp: time.getTime() };
+        return { hour, dateLabel, speed, gusts, temp, direction, waveHeight: 0, seaSurfaceTemp: null, timestamp: time.getTime() };
     });
 }
 
@@ -444,6 +452,23 @@ function displayHourlyForecast() {
             values: weatherData.hourlyForecast.map(item => item.direction)
         }
     ];
+
+    const hasSeaTemp = weatherData.hourlyForecast.some(item => typeof item.seaSurfaceTemp === 'number' && !isNaN(item.seaSurfaceTemp));
+    const hasWaveHeight = weatherData.hourlyForecast.some(item => typeof item.waveHeight === 'number' && !isNaN(item.waveHeight));
+
+    if (hasSeaTemp) {
+        rows.push({
+            label: 'Wassertemp.',
+            values: weatherData.hourlyForecast.map(item => item.seaSurfaceTemp != null && !isNaN(item.seaSurfaceTemp) ? `${(Math.round(item.seaSurfaceTemp * 10) / 10)}°C` : '—')
+        });
+    }
+
+    if (hasWaveHeight) {
+        rows.push({
+            label: 'Wellenhöhe',
+            values: weatherData.hourlyForecast.map(item => item.waveHeight != null && !isNaN(item.waveHeight) ? `${(Math.round(item.waveHeight * 10) / 10)} m` : '—')
+        });
+    }
 
     let html = '<thead>';
     html += '<tr class="date-row"><th class="label-cell empty-cell"></th>' + dateGroups.map(group => {
