@@ -124,6 +124,29 @@ function windSpeedTextColor(speedKnots) {
     return speedKnots > 11 ? '#222' : '#111';
 }
 
+function gustSpeedBackground(speedKnots) {
+    const stops = [
+        { threshold: 0, color: [175, 221, 150] },
+        { threshold: 14, color: [175, 221, 150] },
+        { threshold: 18, color: [255, 229, 153] },
+        { threshold: 30, color: [255, 115, 115] }
+    ];
+    let prev = stops[0];
+
+    for (let i = 1; i < stops.length; i += 1) {
+        const current = stops[i];
+        if (speedKnots <= current.threshold) {
+            const range = current.threshold - prev.threshold;
+            const t = range === 0 ? 0 : Math.min(1, Math.max(0, (speedKnots - prev.threshold) / range));
+            const [r, g, b] = interpolateColor(prev.color, current.color, t);
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+        prev = current;
+    }
+    const last = stops[stops.length - 1].color;
+    return `rgb(${last[0]}, ${last[1]}, ${last[2]})`;
+}
+
 function buildHourlyForecastFromOpenMeteo(data) {
     const timeStrings = data.hourly?.time || [];
     const temperatures = data.hourly?.temperature_2m || [];
@@ -149,7 +172,8 @@ function buildHourlyForecastFromOpenMeteo(data) {
             gusts: Number(windGusts[i] ?? windSpeeds[i] ?? 0),
             temp: Math.round(Number(temperatures[i] ?? 0)),
             direction: degreesToDirection(directionDegrees),
-            directionDegrees
+            directionDegrees,
+            timestamp: time.getTime()
         });
     }
     return forecast;
@@ -190,6 +214,7 @@ async function loadWeatherForCoords(lat, lng, saveLocation = false) {
         weatherData.hourlyForecast = buildHourlyForecastFromOpenMeteo(data);
         displayWeather(weatherData);
         displayHourlyForecast();
+        updateSailingAdvice();
         refreshCoordsText();
         if (mapInstance) {
             updateMap(lat, lng);
@@ -202,6 +227,7 @@ async function loadWeatherForCoords(lat, lng, saveLocation = false) {
         generateHourlyForecast();
         displayWeather(weatherData);
         displayHourlyForecast();
+        updateSailingAdvice();
         refreshCoordsText();
         if (mapInstance) {
             updateMap(lat, lng);
@@ -242,8 +268,43 @@ function generateHourlyForecast() {
         const gusts = Number((speed + 1 + Math.random() * 2).toFixed(1));
         const temp = 14 + Math.round(4 * Math.cos(index / 12) + Math.random() * 2);
         const direction = directions[index % directions.length];
-        return { hour, dateLabel, speed, gusts, temp, direction };
+        return { hour, dateLabel, speed, gusts, temp, direction, timestamp: time.getTime() };
     });
+}
+
+function findNextGoodSailingSlot() {
+    const now = Date.now();
+    const nextSlot = weatherData.hourlyForecast.find(item => {
+        if (!item.timestamp || item.timestamp <= now) return false;
+        const date = new Date(item.timestamp);
+        const hour = date.getHours();
+        const baseWind = kmhToKnots(item.speed);
+        const gustWind = kmhToKnots(item.gusts);
+        return baseWind >= 8 && baseWind <= 14 && gustWind <= 18 && hour >= 10 && hour < 18;
+    });
+
+    if (!nextSlot) {
+        return 'Kein guter Termin gefunden 😢';
+    }
+
+    const date = new Date(nextSlot.timestamp);
+    const formattedDate = date.toLocaleDateString('de-DE', {
+        weekday: 'short',
+        day: '2-digit',
+        month: '2-digit'
+    });
+    const formattedTime = date.toLocaleTimeString('de-DE', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    });
+    return `${formattedDate}, ${formattedTime} Uhr — Grundwind ${kmhToKnots(nextSlot.speed).toFixed(1)} kt, Böen ${kmhToKnots(nextSlot.gusts).toFixed(1)} kt`;
+}
+
+function updateSailingAdvice() {
+    const adviceElement = document.getElementById('sailingAdviceText');
+    if (!adviceElement) return;
+    adviceElement.textContent = findNextGoodSailingSlot();
 }
 
 function displayHourlyForecast() {
@@ -290,10 +351,15 @@ function displayHourlyForecast() {
         html += '<tr>';
         html += `<th class="label-cell">${row.label}</th>`;
         html += row.values.map((value, colIndex) => {
+            const numericValue = Number(value);
             if (rowIndex === 0) {
-                const speed = Number(value);
-                const background = windSpeedBackground(speed);
-                const color = windSpeedTextColor(speed);
+                const background = windSpeedBackground(numericValue);
+                const color = windSpeedTextColor(numericValue);
+                return `<td style="background:${background};color:${color}">${value}</td>`;
+            }
+            if (rowIndex === 1) {
+                const background = gustSpeedBackground(numericValue);
+                const color = windSpeedTextColor(numericValue);
                 return `<td style="background:${background};color:${color}">${value}</td>`;
             }
             return `<td>${value}</td>`;
