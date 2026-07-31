@@ -18,31 +18,37 @@
         </header>
 
         <main class="main">
-            <div id="map"></div>
-            
-            <div class="weather-panel" id="weatherPanel">
-                <div class="location-header">
-                    <h2 id="locationName">Standort</h2>
-                    <button id="favoriteBtn" class="favorite-btn">⭐</button>
-                </div>
-                
-                <div class="weather-data">
-                    <div class="temp-wind">
-                        <div class="temperature">
-                            <span id="temperature">--</span>
-                            <span class="unit">°C</span>
+            <div class="map-wrapper">
+                <div id="map"></div>
+                <div class="map-overlay">
+                    <div class="weather-panel" id="weatherPanel">
+                        <div class="location-header">
+                            <h2 id="locationName">Standort</h2>
+                            <button id="favoriteBtn" class="favorite-btn">⭐</button>
                         </div>
-                        <div class="wind-info">
-                            <div class="wind-direction">
-                                <span id="windDirection">--</span>
+
+                        <div class="weather-data">
+                            <div class="temp-wind">
+                                <div class="temperature">
+                                    <span id="temperature">--</span>
+                                    <span class="unit">°C</span>
+                                </div>
+                                <div class="wind-info">
+                                    <div class="wind-direction">
+                                        <span id="windDirection">--</span>
+                                    </div>
+                                    <div class="wind-speed">
+                                        <span id="windSpeed">--</span>
+                                        <span class="unit"> kt</span>
+                                    </div>
+                                    <div class="wind-gusts">
+                                        <span id="windGusts">--</span>
+                                        <span class="unit"> kt</span>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="wind-speed">
-                                <span id="windSpeed">--</span>
-                                <span class="unit"> kt</span>
-                            </div>
-                            <div class="wind-gusts">
-                                <span id="windGusts">--</span>
-                                <span class="unit"> kt</span>
+                            <div class="coords-info">
+                                <span id="coordsText">52.444476, 13.675989</span>
                             </div>
                         </div>
                     </div>

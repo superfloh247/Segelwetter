@@ -2,6 +2,10 @@
 
 const weatherData = {
     location: 'Standort unbekannt',
+    coords: {
+        lat: 52.444476,
+        lng: 13.675989
+    },
     wind: {
         speed: 0,
         direction: '--',
@@ -88,6 +92,7 @@ function handleSearch(event) {
         alert('Bitte gültige Koordinaten im Format "lat, lon" eingeben.');
         return;
     }
+    weatherData.coords = coords;
     weatherData.location = `Lat ${coords.lat.toFixed(6)}, Lon ${coords.lng.toFixed(6)}`;
     weatherData.temperature = 18;
     weatherData.wind.speed = 14;
@@ -95,6 +100,7 @@ function handleSearch(event) {
     weatherData.wind.direction = 'NW';
     displayWeather(weatherData);
     updateMap(coords.lat, coords.lng);
+    refreshCoordsText();
     closeModal(elements.searchModal);
 }
 
@@ -106,11 +112,12 @@ function setupMap() {
         console.error('Leaflet ist nicht geladen.');
         return;
     }
-    mapInstance = L.map('map').setView([52.444476, 13.675989], 12);
+    const { lat, lng } = weatherData.coords;
+    mapInstance = L.map('map').setView([lat, lng], 12);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
     }).addTo(mapInstance);
-    mapMarker = L.marker([52.444476, 13.675989]).addTo(mapInstance);
+    mapMarker = L.marker([lat, lng]).addTo(mapInstance);
     setTimeout(() => {
         if (mapInstance) {
             mapInstance.invalidateSize();
@@ -125,6 +132,13 @@ function updateMap(lat, lng) {
         mapMarker = L.marker([lat, lng]).addTo(mapInstance);
     } else {
         mapMarker.setLatLng([lat, lng]);
+    }
+}
+
+function refreshCoordsText() {
+    const coordsText = document.getElementById('coordsText');
+    if (coordsText && weatherData.coords) {
+        coordsText.textContent = `${weatherData.coords.lat.toFixed(6)}, ${weatherData.coords.lng.toFixed(6)}`;
     }
 }
 
@@ -153,6 +167,7 @@ function setupModalHandlers() {
 
 function initApp() {
     displayWeather(weatherData);
+    refreshCoordsText();
     setupMap();
     setupModalHandlers();
 }
