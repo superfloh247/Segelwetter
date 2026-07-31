@@ -68,12 +68,13 @@ function generateHourlyForecast() {
     const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
     weatherData.hourlyForecast = Array.from({ length: 72 }, (_, index) => {
         const time = new Date(now.getTime() + index * 3600 * 1000);
-        const hour = time.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+        const hour = time.toLocaleTimeString('de-DE', { hour: '2-digit', hour12: false });
+        const dateLabel = time.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
         const speed = 8 + Math.round(6 + 4 * Math.sin(index / 6) + Math.random() * 3);
         const gusts = Math.max(speed + 3, speed + Math.round(Math.random() * 5));
         const temp = 14 + Math.round(4 * Math.cos(index / 12) + Math.random() * 2);
         const direction = directions[index % directions.length];
-        return { hour, speed, gusts, temp, direction };
+        return { hour, dateLabel, speed, gusts, temp, direction };
     });
 }
 
@@ -82,6 +83,7 @@ function displayHourlyForecast() {
     if (!table) return;
 
     const headerRow = ['Metric', ...weatherData.hourlyForecast.map(item => item.hour)];
+    const dateRow = ['Tag', ...weatherData.hourlyForecast.map(item => item.dateLabel)];
     const rows = [
         {
             label: 'Grundwind',
@@ -101,9 +103,14 @@ function displayHourlyForecast() {
         }
     ];
 
-    let html = '<thead><tr>' + headerRow.map((cell, index) => {
+    let html = '<thead>';
+    html += '<tr class="date-row">' + dateRow.map((cell, index) => {
         return `<th${index === 0 ? ' class="label-cell"' : ''}>${cell}</th>`;
-    }).join('') + '</tr></thead><tbody>';
+    }).join('') + '</tr>';
+    html += '<tr class="time-row">' + headerRow.map((cell, index) => {
+        return `<th${index === 0 ? ' class="label-cell"' : ''}>${cell}</th>`;
+    }).join('') + '</tr>';
+    html += '</thead><tbody>';
 
     rows.forEach(row => {
         html += '<tr>';
@@ -114,6 +121,8 @@ function displayHourlyForecast() {
     html += '</tbody>';
 
     table.innerHTML = html;
+    attachHourlyForecastClickHandlers(table);
+    highlightForecastColumn(selectedForecastColumn);
 }
 
 function refreshCoordsText() {
@@ -167,6 +176,7 @@ function handleSearch(event) {
 
 let mapInstance = null;
 let mapMarker = null;
+let selectedForecastColumn = 1;
 
 function directionToDegrees(direction) {
     const mapping = {
@@ -198,6 +208,50 @@ function createWindMarkerIcon(direction, speedKnots) {
     });
 }
 
+function getForecastByColumn(columnIndex) {
+    if (!weatherData.hourlyForecast || columnIndex <= 0) return null;
+    return weatherData.hourlyForecast[columnIndex - 1] || null;
+}
+
+function updateMarkerFromSelectedColumn() {
+    if (!mapInstance) return;
+    const forecast = getForecastByColumn(selectedForecastColumn);
+    const direction = forecast ? forecast.direction : weatherData.wind.direction;
+    const speed = forecast ? kmhToKnots(forecast.speed) : kmhToKnots(weatherData.wind.speed);
+    const icon = createWindMarkerIcon(direction, speed);
+    if (!mapMarker) {
+        mapMarker = L.marker([weatherData.coords.lat, weatherData.coords.lng], { icon }).addTo(mapInstance);
+    } else {
+        mapMarker.setIcon(icon);
+    }
+}
+
+function highlightForecastColumn(columnIndex) {
+    selectedForecastColumn = columnIndex;
+    const table = document.getElementById('hourlyForecastTable');
+    if (!table) return;
+
+    const cells = table.querySelectorAll('th, td');
+    cells.forEach(cell => cell.classList.remove('selected-column'));
+
+    Array.from(table.rows).forEach(row => {
+        const cell = row.cells[columnIndex];
+        if (cell) {
+            cell.classList.add('selected-column');
+        }
+    });
+
+    updateMarkerFromSelectedColumn();
+}
+
+function attachHourlyForecastClickHandlers(table) {
+    table.addEventListener('click', event => {
+        const cell = event.target.closest('td, th');
+        if (!cell || cell.cellIndex === 0) return;
+        highlightForecastColumn(cell.cellIndex);
+    });
+}
+
 function setupMap() {
     if (typeof L === 'undefined') {
         console.error('Leaflet ist nicht geladen.');
@@ -208,8 +262,11 @@ function setupMap() {
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
     }).addTo(mapInstance);
+    const forecast = getForecastByColumn(selectedForecastColumn);
+    const direction = forecast ? forecast.direction : weatherData.wind.direction;
+    const speedKnots = forecast ? kmhToKnots(forecast.speed) : kmhToKnots(weatherData.wind.speed);
     mapMarker = L.marker([lat, lng], {
-        icon: createWindMarkerIcon(weatherData.wind.direction, kmhToKnots(weatherData.wind.speed))
+        icon: createWindMarkerIcon(direction, speedKnots)
     }).addTo(mapInstance);
     setTimeout(() => {
         if (mapInstance) {
@@ -221,13 +278,15 @@ function setupMap() {
 function updateMap(lat, lng) {
     if (!mapInstance) return;
     mapInstance.setView([lat, lng], 12);
-    const icon = createWindMarkerIcon(weatherData.wind.direction, kmhToKnots(weatherData.wind.speed));
-    if (!mapMarker) {
-        mapMarker = L.marker([lat, lng], { icon }).addTo(mapInstance);
-    } else {
+    weatherData.coords.lat = lat;
+    weatherData.coords.lng = lng;
+    if (mapMarker) {
         mapMarker.setLatLng([lat, lng]);
-        mapMarker.setIcon(icon);
+    } else {
+        const icon = createWindMarkerIcon(weatherData.wind.direction, kmhToKnots(weatherData.wind.speed));
+        mapMarker = L.marker([lat, lng], { icon }).addTo(mapInstance);
     }
+    updateMarkerFromSelectedColumn();
 }
 
 function refreshCoordsText() {

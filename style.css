@@ -21,25 +21,6 @@ body {
     margin-bottom: 1rem;
 }
 
-.map-wrapper {
-    position: relative;
-}
-
-.map-overlay {
-    position: absolute;
-    left: 1rem;
-    top: 1rem;
-    right: 1rem;
-    max-width: 380px;
-    background: rgba(255, 255, 255, 0.95);
-    border-radius: 20px;
-    padding: 1rem 1rem 0.8rem;
-    box-shadow: 0 24px 40px rgba(0, 0, 0, 0.16);
-    backdrop-filter: blur(12px);
-    z-index: 1000;
-    opacity: 1;
-    pointer-events: auto;
-}
 
 .wind-arrow-marker {
     display: flex;
@@ -75,31 +56,34 @@ body {
     border: none;
 }
 
-.map-overlay .weather-panel {
-    background: transparent;
-    box-shadow: none;
-    padding: 0;
+.weather-panel {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 18px;
+    padding: 1rem 1rem 0.8rem;
+    box-shadow: 0 24px 40px rgba(0, 0, 0, 0.16);
+    backdrop-filter: blur(12px);
+    margin-bottom: 1rem;
 }
 
-.map-overlay .location-header {
+.location-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin-bottom: 0.75rem;
 }
 
-.map-overlay .weather-data {
+.weather-data {
     display: grid;
     gap: 0.75rem;
 }
 
-.map-overlay .wind-info {
+.wind-info {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.5rem;
 }
 
-.map-overlay .coords-info {
+.coords-info {
     font-size: 0.9rem;
     color: #555;
     padding-top: 0.5rem;
@@ -131,10 +115,15 @@ body {
 
 .hourly-forecast-table th,
 .hourly-forecast-table td {
-    padding: 0.75rem 0.9rem;
+    padding: 0.6rem 0.75rem;
     border: 1px solid rgba(0,0,0,0.08);
     text-align: center;
     white-space: nowrap;
+    font-size: 0.85rem;
+}
+
+.selected-column {
+    background: rgba(255, 229, 153, 0.95);
 }
 
 .hourly-forecast-table th {
@@ -143,6 +132,30 @@ body {
     position: sticky;
     top: 0;
     z-index: 2;
+}
+
+.hourly-forecast-table thead tr.time-row th {
+    top: 2.6rem;
+}
+
+.hourly-forecast-table thead tr.date-row th:first-child,
+.hourly-forecast-table thead tr.time-row th:first-child,
+.hourly-forecast-table th:first-child,
+.hourly-forecast-table td:first-child {
+    position: sticky;
+    left: 0;
+    background: rgba(255,255,255,0.95);
+    z-index: 3;
+    text-align: left;
+}
+
+.hourly-forecast-table thead tr.date-row th:first-child {
+    background: rgba(255,255,255,0.95);
+}
+
+.hourly-forecast-table thead tr.date-row th:not(:first-child),
+.hourly-forecast-table thead tr.time-row th:not(:first-child) {
+    background: rgba(30, 60, 114, 0.95);
 }
 
 .hourly-forecast-table th:first-child,
@@ -162,12 +175,6 @@ body {
     #map {
         height: 280px;
         min-height: 220px;
-    }
-    .map-overlay {
-        left: 0.75rem;
-        right: 0.75rem;
-        top: 0.75rem;
-        max-width: none;
     }
 }
 
