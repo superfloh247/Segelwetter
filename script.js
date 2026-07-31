@@ -360,11 +360,12 @@ function directionToDegrees(direction) {
 }
 
 function createWindMarkerIcon(directionDegrees, speedKnots) {
-    const rotation = (directionDegrees - 90 + 360) % 360;
+    const normalized = ((directionDegrees % 360) + 360) % 360;
+    const rotation = (normalized + 90) % 360; // Windpfeil zeigt in die tatsächliche Windrichtung
     const html = `
         <div class="wind-arrow-marker">
             <div class="arrow" style="transform: rotate(${rotation}deg);">➤</div>
-            <span>${Math.round(directionDegrees)}°</span>
+            <span>${Math.round(normalized)}°</span>
             <span>${speedKnots} kt</span>
         </div>
     `;
