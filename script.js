@@ -349,7 +349,16 @@ async function loadWeatherForCoords(lat, lng, saveLocation = false) {
         }
     } catch (error) {
         console.warn('Open-Meteo-Daten konnten nicht geladen werden:', error);
-        generateHourlyForecast();
+        weatherData.coords = { lat, lng };
+        weatherData.location = `Lat ${lat.toFixed(6)}, Lon ${lng.toFixed(6)}`;
+        weatherData.temperature = null;
+        weatherData.waveHeight = null;
+        weatherData.seaSurfaceTemperature = null;
+        weatherData.wind.speed = null;
+        weatherData.wind.directionDegrees = null;
+        weatherData.wind.direction = null;
+        weatherData.wind.gusts = null;
+        weatherData.hourlyForecast = [];
         displayWeather(weatherData);
         displayHourlyForecast();
         updateSailingAdvice();
@@ -368,35 +377,20 @@ function kmhToKnots(kmh) {
 
 function displayWeather(data) {
     if (elements.locationName) {
-        elements.locationName.textContent = data.location;
+        elements.locationName.textContent = data.location || '-';
     }
     if (elements.windSpeed) {
-        elements.windSpeed.textContent = `${kmhToKnots(data.wind.speed)}`;
+        elements.windSpeed.textContent = data.wind.speed != null ? `${kmhToKnots(data.wind.speed)}` : '-';
     }
     if (elements.windDirection) {
-        elements.windDirection.textContent = formatWindDirection(data.wind.direction, data.wind.directionDegrees);
+        elements.windDirection.textContent = data.wind.direction ? formatWindDirection(data.wind.direction, data.wind.directionDegrees) : '-';
     }
     if (elements.temperature) {
-        elements.temperature.textContent = `${data.temperature}`;
+        elements.temperature.textContent = data.temperature != null ? `${data.temperature}` : '-';
     }
     if (elements.windGusts) {
-        elements.windGusts.textContent = `${kmhToKnots(data.wind.gusts)}`;
+        elements.windGusts.textContent = data.wind.gusts != null ? `${kmhToKnots(data.wind.gusts)}` : '-';
     }
-}
-
-function generateHourlyForecast() {
-    const now = new Date();
-    const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-    weatherData.hourlyForecast = Array.from({ length: FORECAST_HOURS }, (_, index) => {
-        const time = new Date(now.getTime() + index * 3600 * 1000);
-        const hour = time.toLocaleTimeString('de-DE', { hour: '2-digit', hour12: false });
-        const dateLabel = time.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
-        const speed = Number((2 + Math.random() * 6).toFixed(1));
-        const gusts = Number((speed + 1 + Math.random() * 2).toFixed(1));
-        const temp = 14 + Math.round(4 * Math.cos(index / 12) + Math.random() * 2);
-        const direction = directions[index % directions.length];
-        return { hour, dateLabel, speed, gusts, temp, direction, waveHeight: null, seaSurfaceTemp: null, timestamp: time.getTime() };
-    });
 }
 
 function findNextGoodSailingSlot(criteria) {
@@ -454,6 +448,11 @@ function updateSailingAdvice() {
 function displayHourlyForecast() {
     const table = document.getElementById('hourlyForecastTable');
     if (!table) return;
+
+    if (weatherData.hourlyForecast.length === 0) {
+        table.innerHTML = '<tr><td colspan="100" style="text-align:center;padding:2rem;color:#666;">Keine Vorhersagedaten verfügbar</td></tr>';
+        return;
+     }
 
     const headerRow = weatherData.hourlyForecast.map(item => item.hour);
     const dateGroups = [];
@@ -546,10 +545,7 @@ function displayHourlyForecast() {
     html += '</tbody>';
 
     table.innerHTML = html;
-    attachHourlyForecastClickHandlers(table);
-    if (weatherData.hourlyForecast.length > 0) {
-        if (selectedForecastColumn <= 0 || selectedForecastColumn > weatherData.hourlyForecast.length) {
-            selectedForecastColumn = 1;
+
         }
         highlightForecastColumn(selectedForecastColumn);
     }
@@ -698,13 +694,6 @@ function highlightForecastColumn(columnIndex) {
     updateWeatherPanelFromSelectedForecast();
 }
 
-function attachHourlyForecastClickHandlers(table) {
-    table.addEventListener('click', event => {
-        const cell = event.target.closest('td, th');
-        if (!cell || cell.cellIndex === 0) return;
-        highlightForecastColumn(cell.cellIndex);
-    });
-}
 
 function setupMap() {
     if (typeof L === 'undefined') {
@@ -802,6 +791,14 @@ async function initApp() {
     renderBookmarks();
     setupMap();
     setupModalHandlers();
+    const forecastTable = document.getElementById('hourlyForecastTable');
+    if (forecastTable) {
+        forecastTable.addEventListener('click', event => {
+            const cell = event.target.closest('td, th');
+            if (!cell || cell.cellIndex === 0) return;
+            highlightForecastColumn(cell.cellIndex);
+         });
+     }
     await loadWeatherForCoords(weatherData.coords.lat, weatherData.coords.lng, false);
 }
 
