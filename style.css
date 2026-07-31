@@ -132,25 +132,25 @@ body {
     color: #fff;
 }
 
-.hourly-forecast-table thead tr.date-row th,
+.hourly-forecast-table thead tr.date-row th {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    text-align: center;
+}
+
 .hourly-forecast-table thead tr.time-row th {
     position: sticky;
+    top: 2.4rem;
     z-index: 3;
-}
-
-.hourly-forecast-table thead tr.date-row th {
-    top: 0;
-}
-
-.hourly-forecast-table thead tr.time-row th {
-    top: 2.6rem;
+    text-align: center;
 }
 
 .hourly-forecast-table tbody th.label-cell {
     position: sticky;
     left: 0;
     background: rgba(255,255,255,0.95);
-    z-index: 4;
+    z-index: 5;
     color: #333;
     text-align: left;
 }
