@@ -1,5 +1,7 @@
 // Segelwetter - Wettervorhersage für Segler
 
+const STORAGE_KEY_LAST_LOCATION = 'segelwetter:lastLocation';
+
 const weatherData = {
     location: 'Standort unbekannt',
     coords: {
@@ -14,6 +16,28 @@ const weatherData = {
     temperature: '--',
     hourlyForecast: []
 };
+
+function saveLastLocation(coords, location) {
+    try {
+        localStorage.setItem(STORAGE_KEY_LAST_LOCATION, JSON.stringify({ lat: coords.lat, lng: coords.lng, location }));
+    } catch (error) {
+        console.warn('Kann letzte Position nicht speichern.', error);
+    }
+}
+
+function loadLastLocation() {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY_LAST_LOCATION);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (typeof parsed?.lat === 'number' && typeof parsed?.lng === 'number') {
+            return parsed;
+        }
+    } catch (error) {
+        console.warn('Kann letzte Position nicht laden.', error);
+    }
+    return null;
+}
 
 const elements = {
     locationName: document.getElementById('locationName'),
@@ -82,8 +106,16 @@ function displayHourlyForecast() {
     const table = document.getElementById('hourlyForecastTable');
     if (!table) return;
 
-    const headerRow = ['Metric', ...weatherData.hourlyForecast.map(item => item.hour)];
-    const dateRow = ['Tag', ...weatherData.hourlyForecast.map(item => item.dateLabel)];
+    const headerRow = weatherData.hourlyForecast.map(item => item.hour);
+    const dateGroups = [];
+    weatherData.hourlyForecast.forEach(item => {
+        if (!dateGroups.length || dateGroups[dateGroups.length - 1].dateLabel !== item.dateLabel) {
+            dateGroups.push({ dateLabel: item.dateLabel, count: 1 });
+        } else {
+            dateGroups[dateGroups.length - 1].count += 1;
+        }
+    });
+
     const rows = [
         {
             label: 'Grundwind',
@@ -104,12 +136,10 @@ function displayHourlyForecast() {
     ];
 
     let html = '<thead>';
-    html += '<tr class="date-row">' + dateRow.map((cell, index) => {
-        return `<th${index === 0 ? ' class="label-cell"' : ''}>${cell}</th>`;
+    html += '<tr class="date-row">' + dateGroups.map(group => {
+        return `<th colspan="${group.count}">${group.dateLabel}</th>`;
     }).join('') + '</tr>';
-    html += '<tr class="time-row">' + headerRow.map((cell, index) => {
-        return `<th${index === 0 ? ' class="label-cell"' : ''}>${cell}</th>`;
-    }).join('') + '</tr>';
+    html += '<tr class="time-row">' + headerRow.map(cell => `<th>${cell}</th>`).join('') + '</tr>';
     html += '</thead><tbody>';
 
     rows.forEach(row => {
@@ -171,6 +201,7 @@ function handleSearch(event) {
     displayWeather(weatherData);
     updateMap(coords.lat, coords.lng);
     refreshCoordsText();
+    saveLastLocation(coords, weatherData.location);
     closeModal(elements.searchModal);
 }
 
@@ -320,6 +351,11 @@ function setupModalHandlers() {
 }
 
 function initApp() {
+    const saved = loadLastLocation();
+    if (saved) {
+        weatherData.coords = { lat: saved.lat, lng: saved.lng };
+        weatherData.location = saved.location || weatherData.location;
+    }
     generateHourlyForecast();
     displayWeather(weatherData);
     refreshCoordsText();
