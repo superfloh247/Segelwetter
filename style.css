@@ -138,33 +138,18 @@ body {
     top: 2.6rem;
 }
 
-.hourly-forecast-table thead tr.date-row th:first-child,
-.hourly-forecast-table thead tr.time-row th:first-child,
-.hourly-forecast-table th:first-child,
-.hourly-forecast-table td:first-child {
+.hourly-forecast-table tbody th.label-cell {
     position: sticky;
     left: 0;
     background: rgba(255,255,255,0.95);
     z-index: 3;
+    color: #333;
     text-align: left;
 }
 
-.hourly-forecast-table thead tr.date-row th:first-child {
-    background: rgba(255,255,255,0.95);
-}
-
-.hourly-forecast-table thead tr.date-row th:not(:first-child),
-.hourly-forecast-table thead tr.time-row th:not(:first-child) {
+.hourly-forecast-table thead tr.date-row th,
+.hourly-forecast-table thead tr.time-row th {
     background: rgba(30, 60, 114, 0.95);
-}
-
-.hourly-forecast-table th:first-child,
-.hourly-forecast-table td:first-child {
-    position: sticky;
-    left: 0;
-    background: rgba(255,255,255,0.95);
-    z-index: 3;
-    text-align: left;
 }
 
 .hourly-forecast-table tr:nth-child(even) {
