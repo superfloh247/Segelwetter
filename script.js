@@ -234,13 +234,13 @@ function gustSpeedBackground(speedKnots) {
     return `rgb(${last[0]}, ${last[1]}, ${last[2]})`;
 }
 
-function buildHourlyForecastFromOpenMeteo(data) {
+function buildHourlyForecastFromOpenMeteo(data, marineData) {
     const timeStrings = data.hourly?.time || [];
     const temperatures = data.hourly?.temperature_2m || [];
     const windSpeeds = data.hourly?.windspeed_10m || [];
     const windDirections = data.hourly?.winddirection_10m || [];
     const windGusts = data.hourly?.windgusts_10m || [];
-    const waveHeights = data.hourly?.wave_height;
+    const waveHeights = marineData?.hourly?.wave_height;
     const seaSurfaceTemps = data.hourly?.sea_surface_temperature;
 
     const now = new Date();
@@ -279,7 +279,7 @@ async function fetchWeatherForCoords(lat, lng) {
     const url = new URL('https://api.open-meteo.com/v1/forecast');
     url.searchParams.set('latitude', String(lat));
     url.searchParams.set('longitude', String(lng));
-    url.searchParams.set('hourly', 'temperature_2m,windspeed_10m,winddirection_10m,windgusts_10m,wave_height,sea_surface_temperature');
+    url.searchParams.set('hourly', 'temperature_2m,windspeed_10m,winddirection_10m,windgusts_10m,sea_surface_temperature');
     url.searchParams.set('current_weather', 'true');
     url.searchParams.set('windspeed_unit', 'kmh');
     url.searchParams.set('timezone', 'auto');
@@ -293,21 +293,47 @@ async function fetchWeatherForCoords(lat, lng) {
     return response.json();
 }
 
+async function fetchMarineWaveHeight(lat, lng) {
+    const start = new Date();
+    start.setMinutes(0, 0, 0);
+    const end = new Date(start.getTime() + FORECAST_HOURS * 3600 * 1000);
+    const url = new URL('https://marine-api.open-meteo.com/v1/marine');
+    url.searchParams.set('latitude', String(lat));
+    url.searchParams.set('longitude', String(lng));
+    url.searchParams.set('hourly', 'wave_height');
+    url.searchParams.set('timezone', 'auto');
+    url.searchParams.set('start_date', start.toISOString().slice(0, 10));
+    url.searchParams.set('end_date', end.toISOString().slice(0, 10));
+
+    const response = await fetch(url.href);
+    if (!response.ok) {
+        throw new Error(`Marine Open-Meteo-Antwort fehlerhaft: ${response.status}`);
+    }
+    return response.json();
+}
+
 async function loadWeatherForCoords(lat, lng, saveLocation = false) {
     showLoadingOverlay(true);
     try {
-        const data = await fetchWeatherForCoords(lat, lng);
+        const [data, marineData] = await Promise.all([
+            fetchWeatherForCoords(lat, lng),
+            fetchMarineWaveHeight(lat, lng).catch(error => {
+                console.warn('Marine-Wellenhöhe konnte nicht geladen werden:', error);
+                return null;
+            })
+        ]);
         const current = data.current_weather || {};
         weatherData.coords = { lat, lng };
         weatherData.location = `Lat ${lat.toFixed(6)}, Lon ${lng.toFixed(6)}`;
         weatherData.temperature = Number(current.temperature ?? (data.hourly?.temperature_2m?.[0] ?? 0));
-        weatherData.waveHeight = Number(data.hourly?.wave_height?.[0] ?? null);
-        weatherData.seaSurfaceTemperature = Number(data.hourly?.sea_surface_temperature?.[0] ?? null);
+        const firstWave = marineData?.hourly?.wave_height?.[0];
+        weatherData.waveHeight = firstWave != null ? Number(firstWave) : null;
+        weatherData.seaSurfaceTemperature = data.hourly?.sea_surface_temperature?.[0] != null ? Number(data.hourly?.sea_surface_temperature?.[0]) : null;
         weatherData.wind.speed = Number(current.windspeed ?? (data.hourly?.windspeed_10m?.[0] ?? 0));
         weatherData.wind.directionDegrees = Number(current.winddirection ?? (data.hourly?.winddirection_10m?.[0] ?? 0));
         weatherData.wind.direction = degreesToDirection(weatherData.wind.directionDegrees);
         weatherData.wind.gusts = Number(current.windgust ?? (data.hourly?.windgusts_10m?.[0] ?? weatherData.wind.speed));
-        weatherData.hourlyForecast = buildHourlyForecastFromOpenMeteo(data);
+        weatherData.hourlyForecast = buildHourlyForecastFromOpenMeteo(data, marineData);
         displayWeather(weatherData);
         displayHourlyForecast();
         updateSailingAdvice();
