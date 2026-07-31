@@ -133,7 +133,6 @@ const elements = {
     windGusts: document.getElementById('windGusts'),
     favoriteBtn: document.getElementById('favoriteBtn'),
     bookmarksList: document.getElementById('bookmarksList'),
-    searchBtn: document.getElementById('searchBtn'),
     searchModal: document.getElementById('searchModal'),
     searchInput: document.getElementById('searchInput'),
     searchSubmit: document.getElementById('searchSubmit')
@@ -287,6 +286,7 @@ async function fetchWeatherForCoords(lat, lng) {
 }
 
 async function loadWeatherForCoords(lat, lng, saveLocation = false) {
+    showLoadingOverlay(true);
     try {
         const data = await fetchWeatherForCoords(lat, lng);
         const current = data.current_weather || {};
@@ -318,6 +318,8 @@ async function loadWeatherForCoords(lat, lng, saveLocation = false) {
         if (mapInstance) {
             updateMap(lat, lng);
         }
+    } finally {
+        showLoadingOverlay(false);
     }
 }
 
@@ -473,7 +475,10 @@ function displayHourlyForecast() {
 
     table.innerHTML = html;
     attachHourlyForecastClickHandlers(table);
-    if (selectedForecastColumn > 0) {
+    if (weatherData.hourlyForecast.length > 0) {
+        if (selectedForecastColumn <= 0 || selectedForecastColumn > weatherData.hourlyForecast.length) {
+            selectedForecastColumn = 1;
+        }
         highlightForecastColumn(selectedForecastColumn);
     }
 }
@@ -485,6 +490,21 @@ function parseCoordinates(input) {
     const lng = parseFloat(parts[1]);
     if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
     return { lat, lng };
+}
+
+function showLoadingOverlay(show) {
+    const overlay = document.getElementById('loadingOverlay');
+    if (!overlay) return;
+    overlay.classList.toggle('hidden', !show);
+}
+
+function isTouchDevice() {
+    return ('ontouchstart' in window) || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0;
+}
+
+function handleMapCoordinateSelection(latlng) {
+    if (!latlng) return;
+    loadWeatherForCoords(latlng.lat, latlng.lng, true);
 }
 
 function openModal(modal) {
@@ -620,10 +640,27 @@ function setupMap() {
         return;
     }
     const { lat, lng } = weatherData.coords;
-    mapInstance = L.map('map').setView([lat, lng], 12);
+    mapInstance = L.map('map', {
+        doubleClickZoom: false
+    }).setView([lat, lng], 12);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
     }).addTo(mapInstance);
+
+    mapInstance.on('dblclick', event => {
+        if (event.latlng) {
+            handleMapCoordinateSelection(event.latlng);
+        }
+    });
+
+    if (isTouchDevice()) {
+        mapInstance.on('click', event => {
+            if (event.latlng) {
+                handleMapCoordinateSelection(event.latlng);
+            }
+        });
+    }
+
     const forecast = getForecastByColumn(selectedForecastColumn);
     const directionDegrees = forecast ? forecast.directionDegrees : weatherData.wind.directionDegrees ?? 0;
     const speedKnots = forecast ? kmhToKnots(forecast.speed) : kmhToKnots(weatherData.wind.speed);
@@ -664,9 +701,6 @@ function setupModalHandlers() {
     }
     if (elements.favoriteBtn) {
         elements.favoriteBtn.addEventListener('click', addOrUpdateFavorite);
-    }
-    if (elements.searchBtn) {
-        elements.searchBtn.addEventListener('click', () => openModal(elements.searchModal));
     }
     const closeButtons = document.querySelectorAll('.modal .close');
     closeButtons.forEach(button => {

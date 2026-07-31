@@ -79,17 +79,8 @@
                     <!-- Bookmarks will be listed here -->
                 </div>
             </div>
-
-            <div class="add-bookmark">
-                <button id="addBookmarkBtn" class="add-btn">Speichern</button>
-            </div>
         </main>
 
-        <div class="bottom-bar">
-            <button id="searchBtn" class="ios-button">
-                <span class="button-text">Ort suchen</span>
-            </button>
-        </div>
     </div>
 
     <!-- Modal for location search -->
@@ -102,14 +93,9 @@
         </div>
     </div>
 
-    <!-- Modal for add bookmark -->
-    <div id="addBookmarkModal" class="modal hidden">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2>Favorit hinzufügen</h2>
-            <input type="text" id="bookmarkName" placeholder="Name des Standorts">
-            <button id="saveBookmarkBtn" class="ios-button primary">Speichern</button>
-        </div>
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="loading-spinner"></div>
+        <p>Lädt Wetterdaten…</p>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
