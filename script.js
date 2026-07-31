@@ -545,10 +545,7 @@ function displayHourlyForecast() {
     html += '</tbody>';
 
     table.innerHTML = html;
-
-        }
-        highlightForecastColumn(selectedForecastColumn);
-    }
+    highlightForecastColumn(selectedForecastColumn);
 }
 
 function parseCoordinates(input) {
