@@ -65,8 +65,106 @@ function formatWindDirection(direction) {
     return directionMap[direction] || direction;
 }
 
+function speedToKnots(speedMps) {
+    return Number((speedMps * 1.943844).toFixed(1));
+}
+
+function degreesToDirection(degrees) {
+    const normalized = ((degrees % 360) + 360) % 360;
+    if (normalized >= 337.5 || normalized < 22.5) return 'N';
+    if (normalized < 67.5) return 'NE';
+    if (normalized < 112.5) return 'E';
+    if (normalized < 157.5) return 'SE';
+    if (normalized < 202.5) return 'S';
+    if (normalized < 247.5) return 'SW';
+    if (normalized < 292.5) return 'W';
+    return 'NW';
+}
+
+function buildHourlyForecastFromOpenMeteo(data) {
+    const timeStrings = data.hourly?.time || [];
+    const temperatures = data.hourly?.temperature_2m || [];
+    const windSpeeds = data.hourly?.windspeed_10m || [];
+    const windDirections = data.hourly?.winddirection_10m || [];
+    const windGusts = data.hourly?.windgusts_10m || [];
+
+    const now = new Date();
+    const start = new Date(now);
+    start.setMinutes(0, 0, 0);
+
+    const forecast = [];
+    for (let i = 0; i < timeStrings.length && forecast.length < 72; i += 1) {
+        const time = new Date(timeStrings[i]);
+        if (time < start) continue;
+        const hour = time.toLocaleTimeString('de-DE', { hour: '2-digit', hour12: false });
+        const dateLabel = time.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+        forecast.push({
+            hour,
+            dateLabel,
+            speed: Number(windSpeeds[i] ?? 0),
+            gusts: Number(windGusts[i] ?? windSpeeds[i] ?? 0),
+            temp: Math.round(Number(temperatures[i] ?? 0)),
+            direction: degreesToDirection(Number(windDirections[i] ?? 0))
+        });
+    }
+    return forecast;
+}
+
+async function fetchWeatherForCoords(lat, lng) {
+    const start = new Date();
+    start.setMinutes(0, 0, 0);
+    const end = new Date(start.getTime() + 72 * 3600 * 1000);
+    const url = new URL('https://api.open-meteo.com/v1/forecast');
+    url.searchParams.set('latitude', String(lat));
+    url.searchParams.set('longitude', String(lng));
+    url.searchParams.set('hourly', 'temperature_2m,windspeed_10m,winddirection_10m,windgusts_10m');
+    url.searchParams.set('current_weather', 'true');
+    url.searchParams.set('windspeed_unit', 'kmh');
+    url.searchParams.set('timezone', 'auto');
+    url.searchParams.set('start_date', start.toISOString().slice(0, 10));
+    url.searchParams.set('end_date', end.toISOString().slice(0, 10));
+
+    const response = await fetch(url.href);
+    if (!response.ok) {
+        throw new Error(`Open-Meteo-Antwort fehlerhaft: ${response.status}`);
+    }
+    return response.json();
+}
+
+async function loadWeatherForCoords(lat, lng, saveLocation = false) {
+    try {
+        const data = await fetchWeatherForCoords(lat, lng);
+        const current = data.current_weather || {};
+        weatherData.coords = { lat, lng };
+        weatherData.location = `Lat ${lat.toFixed(6)}, Lon ${lng.toFixed(6)}`;
+        weatherData.temperature = Number(current.temperature ?? (data.hourly?.temperature_2m?.[0] ?? 0));
+        weatherData.wind.speed = Number(current.windspeed ?? (data.hourly?.windspeed_10m?.[0] ?? 0));
+        weatherData.wind.direction = degreesToDirection(Number(current.winddirection ?? (data.hourly?.winddirection_10m?.[0] ?? 0)));
+        weatherData.wind.gusts = Number(current.windgust ?? (data.hourly?.windgusts_10m?.[0] ?? weatherData.wind.speed));
+        weatherData.hourlyForecast = buildHourlyForecastFromOpenMeteo(data);
+        displayWeather(weatherData);
+        displayHourlyForecast();
+        refreshCoordsText();
+        if (mapInstance) {
+            updateMap(lat, lng);
+        }
+        if (saveLocation) {
+            saveLastLocation({ lat, lng }, weatherData.location);
+        }
+    } catch (error) {
+        console.warn('Open-Meteo-Daten konnten nicht geladen werden:', error);
+        generateHourlyForecast();
+        displayWeather(weatherData);
+        displayHourlyForecast();
+        refreshCoordsText();
+        if (mapInstance) {
+            updateMap(lat, lng);
+        }
+    }
+}
+
 function kmhToKnots(kmh) {
-    return Number((kmh * 0.539957).toFixed(1));
+    return speedToKnots(kmh / 3.6);
 }
 
 function displayWeather(data) {
@@ -94,8 +192,8 @@ function generateHourlyForecast() {
         const time = new Date(now.getTime() + index * 3600 * 1000);
         const hour = time.toLocaleTimeString('de-DE', { hour: '2-digit', hour12: false });
         const dateLabel = time.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
-        const speed = 8 + Math.round(6 + 4 * Math.sin(index / 6) + Math.random() * 3);
-        const gusts = Math.max(speed + 3, speed + Math.round(Math.random() * 5));
+        const speed = Number((2 + Math.random() * 6).toFixed(1));
+        const gusts = Number((speed + 1 + Math.random() * 2).toFixed(1));
         const temp = 14 + Math.round(4 * Math.cos(index / 12) + Math.random() * 2);
         const direction = directions[index % directions.length];
         return { hour, dateLabel, speed, gusts, temp, direction };
@@ -183,7 +281,7 @@ function closeModal(modal) {
     }
 }
 
-function handleSearch(event) {
+async function handleSearch(event) {
     event.preventDefault();
     const query = elements.searchInput?.value.trim();
     if (!query) return;
@@ -192,16 +290,7 @@ function handleSearch(event) {
         alert('Bitte gültige Koordinaten im Format "lat, lon" eingeben.');
         return;
     }
-    weatherData.coords = coords;
-    weatherData.location = `Lat ${coords.lat.toFixed(6)}, Lon ${coords.lng.toFixed(6)}`;
-    weatherData.temperature = 18;
-    weatherData.wind.speed = 14;
-    weatherData.wind.gusts = 20;
-    weatherData.wind.direction = 'NW';
-    displayWeather(weatherData);
-    updateMap(coords.lat, coords.lng);
-    refreshCoordsText();
-    saveLastLocation(coords, weatherData.location);
+    await loadWeatherForCoords(coords.lat, coords.lng, true);
     closeModal(elements.searchModal);
 }
 
@@ -350,18 +439,15 @@ function setupModalHandlers() {
     }
 }
 
-function initApp() {
+async function initApp() {
     const saved = loadLastLocation();
     if (saved) {
         weatherData.coords = { lat: saved.lat, lng: saved.lng };
         weatherData.location = saved.location || weatherData.location;
     }
-    generateHourlyForecast();
-    displayWeather(weatherData);
-    refreshCoordsText();
-    displayHourlyForecast();
     setupMap();
     setupModalHandlers();
+    await loadWeatherForCoords(weatherData.coords.lat, weatherData.coords.lng, false);
 }
 
 document.addEventListener('DOMContentLoaded', initApp);
