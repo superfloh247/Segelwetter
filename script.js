@@ -488,6 +488,13 @@ function displayHourlyForecast() {
     const hasSeaTemp = weatherData.hourlyForecast.some(item => typeof item.seaSurfaceTemp === 'number' && !isNaN(item.seaSurfaceTemp));
     const hasWaveHeight = weatherData.hourlyForecast.some(item => typeof item.waveHeight === 'number' && !isNaN(item.waveHeight));
 
+    if (hasSeaTemp) {
+        rows.push({
+            label: 'Wassertemp.',
+            values: weatherData.hourlyForecast.map(item => item.seaSurfaceTemp != null && !isNaN(item.seaSurfaceTemp) ? `${(Math.round(item.seaSurfaceTemp * 10) / 10)}°C` : '—')
+        });
+    }
+
     if (hasCape) {
         rows.push({
             label: 'Gewitter',
@@ -500,13 +507,6 @@ function displayHourlyForecast() {
                 }
                 return '!';
             })
-        });
-    }
-
-    if (hasSeaTemp) {
-        rows.push({
-            label: 'Wassertemp.',
-            values: weatherData.hourlyForecast.map(item => item.seaSurfaceTemp != null && !isNaN(item.seaSurfaceTemp) ? `${(Math.round(item.seaSurfaceTemp * 10) / 10)}°C` : '—')
         });
     }
 
