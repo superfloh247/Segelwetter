@@ -41,6 +41,40 @@ body {
     pointer-events: auto;
 }
 
+.wind-arrow-marker {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    min-width: 64px;
+    min-height: 64px;
+    padding: 8px 6px 10px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 2px solid #1e3c72;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+    color: #1e3c72;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.wind-arrow-marker .arrow {
+    font-size: 26px;
+    line-height: 1;
+}
+
+.wind-arrow-marker span {
+    margin-top: 4px;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+}
+
+.wind-arrow-div-icon {
+    background: transparent;
+    border: none;
+}
+
 .map-overlay .weather-panel {
     background: transparent;
     box-shadow: none;

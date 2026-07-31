@@ -168,6 +168,36 @@ function handleSearch(event) {
 let mapInstance = null;
 let mapMarker = null;
 
+function directionToDegrees(direction) {
+    const mapping = {
+        N: 0,
+        NE: 45,
+        E: 90,
+        SE: 135,
+        S: 180,
+        SW: 225,
+        W: 270,
+        NW: 315
+    };
+    return mapping[direction] ?? 0;
+}
+
+function createWindMarkerIcon(direction, speedKnots) {
+    const deg = directionToDegrees(direction);
+    const html = `
+        <div class="wind-arrow-marker">
+            <div class="arrow" style="transform: rotate(${deg}deg);">➤</div>
+            <span>${speedKnots} kt</span>
+        </div>
+    `;
+    return L.divIcon({
+        className: 'wind-arrow-div-icon',
+        html,
+        iconSize: [64, 64],
+        iconAnchor: [32, 58]
+    });
+}
+
 function setupMap() {
     if (typeof L === 'undefined') {
         console.error('Leaflet ist nicht geladen.');
@@ -178,7 +208,9 @@ function setupMap() {
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
     }).addTo(mapInstance);
-    mapMarker = L.marker([lat, lng]).addTo(mapInstance);
+    mapMarker = L.marker([lat, lng], {
+        icon: createWindMarkerIcon(weatherData.wind.direction, kmhToKnots(weatherData.wind.speed))
+    }).addTo(mapInstance);
     setTimeout(() => {
         if (mapInstance) {
             mapInstance.invalidateSize();
@@ -189,10 +221,12 @@ function setupMap() {
 function updateMap(lat, lng) {
     if (!mapInstance) return;
     mapInstance.setView([lat, lng], 12);
+    const icon = createWindMarkerIcon(weatherData.wind.direction, kmhToKnots(weatherData.wind.speed));
     if (!mapMarker) {
-        mapMarker = L.marker([lat, lng]).addTo(mapInstance);
+        mapMarker = L.marker([lat, lng], { icon }).addTo(mapInstance);
     } else {
         mapMarker.setLatLng([lat, lng]);
+        mapMarker.setIcon(icon);
     }
 }
 
