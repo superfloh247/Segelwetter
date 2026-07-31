@@ -235,10 +235,10 @@ function displayHourlyForecast() {
     ];
 
     let html = '<thead>';
-    html += '<tr class="date-row">' + dateGroups.map(group => {
+    html += '<tr class="date-row"><th class="label-cell empty-cell"></th>' + dateGroups.map(group => {
         return `<th colspan="${group.count}">${group.dateLabel}</th>`;
     }).join('') + '</tr>';
-    html += '<tr class="time-row">' + headerRow.map(cell => `<th>${cell}</th>`).join('') + '</tr>';
+    html += '<tr class="time-row"><th class="label-cell empty-cell"></th>' + headerRow.map(cell => `<th>${cell}</th>`).join('') + '</tr>';
     html += '</thead><tbody>';
 
     rows.forEach(row => {
