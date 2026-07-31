@@ -11,7 +11,8 @@ const weatherData = {
         direction: '--',
         gusts: 0
     },
-    temperature: '--'
+    temperature: '--',
+    hourlyForecast: []
 };
 
 const elements = {
@@ -59,6 +60,66 @@ function displayWeather(data) {
     }
     if (elements.windGusts) {
         elements.windGusts.textContent = `${kmhToKnots(data.wind.gusts)}`;
+    }
+}
+
+function generateHourlyForecast() {
+    const now = new Date();
+    const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+    weatherData.hourlyForecast = Array.from({ length: 72 }, (_, index) => {
+        const time = new Date(now.getTime() + index * 3600 * 1000);
+        const hour = time.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+        const speed = 8 + Math.round(6 + 4 * Math.sin(index / 6) + Math.random() * 3);
+        const gusts = Math.max(speed + 3, speed + Math.round(Math.random() * 5));
+        const temp = 14 + Math.round(4 * Math.cos(index / 12) + Math.random() * 2);
+        const direction = directions[index % directions.length];
+        return { hour, speed, gusts, temp, direction };
+    });
+}
+
+function displayHourlyForecast() {
+    const table = document.getElementById('hourlyForecastTable');
+    if (!table) return;
+
+    const headerRow = ['Metric', ...weatherData.hourlyForecast.map(item => item.hour)];
+    const rows = [
+        {
+            label: 'Grundwind',
+            values: weatherData.hourlyForecast.map(item => `${kmhToKnots(item.speed)}`)
+        },
+        {
+            label: 'Böen',
+            values: weatherData.hourlyForecast.map(item => `${kmhToKnots(item.gusts)}`)
+        },
+        {
+            label: 'Temperatur',
+            values: weatherData.hourlyForecast.map(item => `${item.temp}°C`)
+        },
+        {
+            label: 'Windrichtung',
+            values: weatherData.hourlyForecast.map(item => item.direction)
+        }
+    ];
+
+    let html = '<thead><tr>' + headerRow.map((cell, index) => {
+        return `<th${index === 0 ? ' class="label-cell"' : ''}>${cell}</th>`;
+    }).join('') + '</tr></thead><tbody>';
+
+    rows.forEach(row => {
+        html += '<tr>';
+        html += `<th class="label-cell">${row.label}</th>`;
+        html += row.values.map(value => `<td>${value}</td>`).join('');
+        html += '</tr>';
+    });
+    html += '</tbody>';
+
+    table.innerHTML = html;
+}
+
+function refreshCoordsText() {
+    const coordsText = document.getElementById('coordsText');
+    if (coordsText && weatherData.coords) {
+        coordsText.textContent = `${weatherData.coords.lat.toFixed(6)}, ${weatherData.coords.lng.toFixed(6)}`;
     }
 }
 
@@ -166,8 +227,10 @@ function setupModalHandlers() {
 }
 
 function initApp() {
+    generateHourlyForecast();
     displayWeather(weatherData);
     refreshCoordsText();
+    displayHourlyForecast();
     setupMap();
     setupModalHandlers();
 }
