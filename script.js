@@ -12,6 +12,7 @@ const weatherData = {
     wind: {
         speed: 0,
         direction: '--',
+        directionDegrees: 0,
         gusts: 0
     },
     temperature: '--',
@@ -52,7 +53,7 @@ const elements = {
     searchSubmit: document.getElementById('searchSubmit')
 };
 
-function formatWindDirection(direction) {
+function formatWindDirection(direction, directionDegrees) {
     const directionMap = {
         N: 'Norden',
         NE: 'Nord-Osten',
@@ -63,7 +64,11 @@ function formatWindDirection(direction) {
         W: 'Westen',
         NW: 'Nord-West'
     };
-    return directionMap[direction] || direction;
+    const label = directionMap[direction] || direction;
+    if (typeof directionDegrees === 'number') {
+        return `${label} (${Math.round(directionDegrees)}°)`;
+    }
+    return label;
 }
 
 function speedToKnots(speedMps) {
@@ -136,13 +141,15 @@ function buildHourlyForecastFromOpenMeteo(data) {
         if (time < start) continue;
         const hour = time.toLocaleTimeString('de-DE', { hour: '2-digit', hour12: false });
         const dateLabel = time.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+        const directionDegrees = Number(windDirections[i] ?? 0);
         forecast.push({
             hour,
             dateLabel,
             speed: Number(windSpeeds[i] ?? 0),
             gusts: Number(windGusts[i] ?? windSpeeds[i] ?? 0),
             temp: Math.round(Number(temperatures[i] ?? 0)),
-            direction: degreesToDirection(Number(windDirections[i] ?? 0))
+            direction: degreesToDirection(directionDegrees),
+            directionDegrees
         });
     }
     return forecast;
@@ -177,7 +184,8 @@ async function loadWeatherForCoords(lat, lng, saveLocation = false) {
         weatherData.location = `Lat ${lat.toFixed(6)}, Lon ${lng.toFixed(6)}`;
         weatherData.temperature = Number(current.temperature ?? (data.hourly?.temperature_2m?.[0] ?? 0));
         weatherData.wind.speed = Number(current.windspeed ?? (data.hourly?.windspeed_10m?.[0] ?? 0));
-        weatherData.wind.direction = degreesToDirection(Number(current.winddirection ?? (data.hourly?.winddirection_10m?.[0] ?? 0)));
+        weatherData.wind.directionDegrees = Number(current.winddirection ?? (data.hourly?.winddirection_10m?.[0] ?? 0));
+        weatherData.wind.direction = degreesToDirection(weatherData.wind.directionDegrees);
         weatherData.wind.gusts = Number(current.windgust ?? (data.hourly?.windgusts_10m?.[0] ?? weatherData.wind.speed));
         weatherData.hourlyForecast = buildHourlyForecastFromOpenMeteo(data);
         displayWeather(weatherData);
@@ -213,7 +221,7 @@ function displayWeather(data) {
         elements.windSpeed.textContent = `${kmhToKnots(data.wind.speed)}`;
     }
     if (elements.windDirection) {
-        elements.windDirection.textContent = formatWindDirection(data.wind.direction);
+        elements.windDirection.textContent = formatWindDirection(data.wind.direction, data.wind.directionDegrees);
     }
     if (elements.temperature) {
         elements.temperature.textContent = `${data.temperature}`;
@@ -299,13 +307,6 @@ function displayHourlyForecast() {
     highlightForecastColumn(selectedForecastColumn);
 }
 
-function refreshCoordsText() {
-    const coordsText = document.getElementById('coordsText');
-    if (coordsText && weatherData.coords) {
-        coordsText.textContent = `${weatherData.coords.lat.toFixed(6)}, ${weatherData.coords.lng.toFixed(6)}`;
-    }
-}
-
 function parseCoordinates(input) {
     const parts = input.split(',').map(part => part.trim());
     if (parts.length !== 2) return null;
@@ -358,19 +359,20 @@ function directionToDegrees(direction) {
     return mapping[direction] ?? 0;
 }
 
-function createWindMarkerIcon(direction, speedKnots) {
-    const deg = directionToDegrees(direction);
+function createWindMarkerIcon(directionDegrees, speedKnots) {
+    const rotation = (directionDegrees - 90 + 360) % 360;
     const html = `
         <div class="wind-arrow-marker">
-            <div class="arrow" style="transform: rotate(${deg - 90}deg);">➤</div>
+            <div class="arrow" style="transform: rotate(${rotation}deg);">➤</div>
+            <span>${Math.round(directionDegrees)}°</span>
             <span>${speedKnots} kt</span>
         </div>
     `;
     return L.divIcon({
         className: 'wind-arrow-div-icon',
         html,
-        iconSize: [64, 64],
-        iconAnchor: [32, 58]
+        iconSize: [64, 80],
+        iconAnchor: [32, 68]
     });
 }
 
@@ -382,9 +384,9 @@ function getForecastByColumn(columnIndex) {
 function updateMarkerFromSelectedColumn() {
     if (!mapInstance) return;
     const forecast = getForecastByColumn(selectedForecastColumn);
-    const direction = forecast ? forecast.direction : weatherData.wind.direction;
+    const directionDegrees = forecast ? forecast.directionDegrees : weatherData.wind.directionDegrees ?? 0;
     const speed = forecast ? kmhToKnots(forecast.speed) : kmhToKnots(weatherData.wind.speed);
-    const icon = createWindMarkerIcon(direction, speed);
+    const icon = createWindMarkerIcon(directionDegrees, speed);
     if (!mapMarker) {
         mapMarker = L.marker([weatherData.coords.lat, weatherData.coords.lng], { icon }).addTo(mapInstance);
     } else {
@@ -429,10 +431,10 @@ function setupMap() {
         attribution: '&copy; OpenStreetMap contributors'
     }).addTo(mapInstance);
     const forecast = getForecastByColumn(selectedForecastColumn);
-    const direction = forecast ? forecast.direction : weatherData.wind.direction;
+    const directionDegrees = forecast ? forecast.directionDegrees : weatherData.wind.directionDegrees ?? 0;
     const speedKnots = forecast ? kmhToKnots(forecast.speed) : kmhToKnots(weatherData.wind.speed);
     mapMarker = L.marker([lat, lng], {
-        icon: createWindMarkerIcon(direction, speedKnots)
+        icon: createWindMarkerIcon(directionDegrees, speedKnots)
     }).addTo(mapInstance);
     setTimeout(() => {
         if (mapInstance) {
@@ -449,7 +451,7 @@ function updateMap(lat, lng) {
     if (mapMarker) {
         mapMarker.setLatLng([lat, lng]);
     } else {
-        const icon = createWindMarkerIcon(weatherData.wind.direction, kmhToKnots(weatherData.wind.speed));
+        const icon = createWindMarkerIcon(weatherData.wind.directionDegrees, kmhToKnots(weatherData.wind.speed));
         mapMarker = L.marker([lat, lng], { icon }).addTo(mapInstance);
     }
     updateMarkerFromSelectedColumn();

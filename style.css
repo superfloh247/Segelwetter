@@ -27,28 +27,37 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    width: 64px;
-    min-width: 64px;
-    min-height: 64px;
-    padding: 8px 6px 10px;
+    width: auto;
+    min-width: 68px;
+    min-height: 68px;
+    padding: 10px 8px;
     border-radius: 18px;
     background: rgba(255, 255, 255, 0.95);
-    border: 2px solid #1e3c72;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+    border: 2px solid rgba(30, 60, 114, 0.92);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
     color: #1e3c72;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
 }
 
 .wind-arrow-marker .arrow {
-    font-size: 26px;
+    font-size: 30px;
     line-height: 1;
+    color: #0f1f45;
+    text-shadow: 0 2px 4px rgba(255, 255, 255, 0.75);
 }
 
 .wind-arrow-marker span {
     margin-top: 4px;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
+    color: #0f1f45;
     text-align: center;
+    letter-spacing: 0.02em;
+}
+
+.wind-arrow-marker span:first-of-type {
+    font-size: 13px;
 }
 
 .wind-arrow-div-icon {
