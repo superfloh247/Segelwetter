@@ -240,8 +240,8 @@ function buildHourlyForecastFromOpenMeteo(data) {
     const windSpeeds = data.hourly?.windspeed_10m || [];
     const windDirections = data.hourly?.winddirection_10m || [];
     const windGusts = data.hourly?.windgusts_10m || [];
-    const waveHeights = data.hourly?.wave_height || [];
-    const seaSurfaceTemps = data.hourly?.sea_surface_temperature || [];
+    const waveHeights = data.hourly?.wave_height;
+    const seaSurfaceTemps = data.hourly?.sea_surface_temperature;
 
     const now = new Date();
     const start = new Date(now);
@@ -254,14 +254,16 @@ function buildHourlyForecastFromOpenMeteo(data) {
         const hour = time.toLocaleTimeString('de-DE', { hour: '2-digit', hour12: false });
         const dateLabel = time.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
         const directionDegrees = Number(windDirections[i] ?? 0);
+        const waveHeightVal = (waveHeights && i < waveHeights.length && waveHeights[i] != null) ? Number(waveHeights[i]) : null;
+        const seaSurfaceVal = (seaSurfaceTemps && i < seaSurfaceTemps.length && seaSurfaceTemps[i] != null) ? Number(seaSurfaceTemps[i]) : null;
         forecast.push({
             hour,
             dateLabel,
             speed: Number(windSpeeds[i] ?? 0),
             gusts: Number(windGusts[i] ?? windSpeeds[i] ?? 0),
             temp: Math.round(Number(temperatures[i] ?? 0)),
-            waveHeight: Number(waveHeights[i] ?? null),
-            seaSurfaceTemp: Number(seaSurfaceTemps[i] ?? null),
+            waveHeight: waveHeightVal,
+            seaSurfaceTemp: seaSurfaceVal,
             direction: degreesToDirection(directionDegrees),
             directionDegrees,
             timestamp: time.getTime()
@@ -364,7 +366,7 @@ function generateHourlyForecast() {
         const gusts = Number((speed + 1 + Math.random() * 2).toFixed(1));
         const temp = 14 + Math.round(4 * Math.cos(index / 12) + Math.random() * 2);
         const direction = directions[index % directions.length];
-        return { hour, dateLabel, speed, gusts, temp, direction, waveHeight: 0, seaSurfaceTemp: null, timestamp: time.getTime() };
+        return { hour, dateLabel, speed, gusts, temp, direction, waveHeight: null, seaSurfaceTemp: null, timestamp: time.getTime() };
     });
 }
 
