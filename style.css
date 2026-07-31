@@ -130,9 +130,16 @@ body {
 .hourly-forecast-table th {
     background: rgba(30, 60, 114, 0.95);
     color: #fff;
+}
+
+.hourly-forecast-table thead tr.date-row th,
+.hourly-forecast-table thead tr.time-row th {
     position: sticky;
+    z-index: 3;
+}
+
+.hourly-forecast-table thead tr.date-row th {
     top: 0;
-    z-index: 2;
 }
 
 .hourly-forecast-table thead tr.time-row th {
@@ -143,14 +150,9 @@ body {
     position: sticky;
     left: 0;
     background: rgba(255,255,255,0.95);
-    z-index: 3;
+    z-index: 4;
     color: #333;
     text-align: left;
-}
-
-.hourly-forecast-table thead tr.date-row th,
-.hourly-forecast-table thead tr.time-row th {
-    background: rgba(30, 60, 114, 0.95);
 }
 
 .hourly-forecast-table tr:nth-child(even) {
