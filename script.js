@@ -1,6 +1,7 @@
 // Segelwetter - Wettervorhersage für Segler
 
 const STORAGE_KEY_LAST_LOCATION = 'segelwetter:lastLocation';
+const FORECAST_HOURS = 7 * 24;
 
 const weatherData = {
     location: 'Standort unbekannt',
@@ -93,7 +94,7 @@ function buildHourlyForecastFromOpenMeteo(data) {
     start.setMinutes(0, 0, 0);
 
     const forecast = [];
-    for (let i = 0; i < timeStrings.length && forecast.length < 72; i += 1) {
+    for (let i = 0; i < timeStrings.length && forecast.length < FORECAST_HOURS; i += 1) {
         const time = new Date(timeStrings[i]);
         if (time < start) continue;
         const hour = time.toLocaleTimeString('de-DE', { hour: '2-digit', hour12: false });
@@ -113,7 +114,7 @@ function buildHourlyForecastFromOpenMeteo(data) {
 async function fetchWeatherForCoords(lat, lng) {
     const start = new Date();
     start.setMinutes(0, 0, 0);
-    const end = new Date(start.getTime() + 72 * 3600 * 1000);
+    const end = new Date(start.getTime() + FORECAST_HOURS * 3600 * 1000);
     const url = new URL('https://api.open-meteo.com/v1/forecast');
     url.searchParams.set('latitude', String(lat));
     url.searchParams.set('longitude', String(lng));
@@ -188,7 +189,7 @@ function displayWeather(data) {
 function generateHourlyForecast() {
     const now = new Date();
     const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-    weatherData.hourlyForecast = Array.from({ length: 72 }, (_, index) => {
+    weatherData.hourlyForecast = Array.from({ length: FORECAST_HOURS }, (_, index) => {
         const time = new Date(now.getTime() + index * 3600 * 1000);
         const hour = time.toLocaleTimeString('de-DE', { hour: '2-digit', hour12: false });
         const dateLabel = time.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
