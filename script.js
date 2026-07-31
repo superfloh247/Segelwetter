@@ -5,8 +5,8 @@ const STORAGE_KEY_LAST_LOCATION = 'segelwetter:lastLocation';
 const weatherData = {
     location: 'Standort unbekannt',
     coords: {
-        lat: 52.444476,
-        lng: 13.675989
+        lat: 52.44318115023351,
+        lng: 13.675055360861572
     },
     wind: {
         speed: 0,
