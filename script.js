@@ -133,9 +133,6 @@ const elements = {
     windGusts: document.getElementById('windGusts'),
     favoriteBtn: document.getElementById('favoriteBtn'),
     bookmarksList: document.getElementById('bookmarksList'),
-    sailingSelectedText: document.getElementById('sailingSelectedText'),
-    sailingBaseWind: document.getElementById('sailingBaseWind'),
-    sailingGustWind: document.getElementById('sailingGustWind'),
     searchBtn: document.getElementById('searchBtn'),
     searchModal: document.getElementById('searchModal'),
     searchInput: document.getElementById('searchInput'),
@@ -361,7 +358,7 @@ function generateHourlyForecast() {
     });
 }
 
-function findNextGoodSailingSlot() {
+function findNextGoodSailingSlot(criteria) {
     const now = Date.now();
     const nextSlot = weatherData.hourlyForecast.find(item => {
         if (!item.timestamp || item.timestamp <= now) return false;
@@ -369,7 +366,7 @@ function findNextGoodSailingSlot() {
         const hour = date.getHours();
         const baseWind = kmhToKnots(item.speed);
         const gustWind = kmhToKnots(item.gusts);
-        return baseWind >= 8 && baseWind <= 14 && gustWind <= 18 && hour >= 10 && hour < 18;
+        return baseWind >= criteria.baseWindMin && baseWind <= criteria.baseWindMax && gustWind <= criteria.gustMax && hour >= criteria.hourMin && hour < criteria.hourMax;
     });
 
     if (!nextSlot) {
@@ -391,9 +388,26 @@ function findNextGoodSailingSlot() {
 }
 
 function updateSailingAdvice() {
-    const adviceElement = document.getElementById('sailingAdviceText');
-    if (!adviceElement) return;
-    adviceElement.textContent = findNextGoodSailingSlot();
+    const catElement = document.getElementById('sailingAdviceCat');
+    const jolleElement = document.getElementById('sailingAdviceJolle');
+    if (catElement) {
+        catElement.textContent = findNextGoodSailingSlot({
+            baseWindMin: 8,
+            baseWindMax: 14,
+            gustMax: 18,
+            hourMin: 10,
+            hourMax: 18
+        });
+    }
+    if (jolleElement) {
+        jolleElement.textContent = findNextGoodSailingSlot({
+            baseWindMin: 3,
+            baseWindMax: 6,
+            gustMax: 10,
+            hourMin: 10,
+            hourMax: 18
+        });
+    }
 }
 
 function displayHourlyForecast() {
@@ -459,8 +473,9 @@ function displayHourlyForecast() {
 
     table.innerHTML = html;
     attachHourlyForecastClickHandlers(table);
-    highlightForecastColumn(selectedForecastColumn);
-    updateSelectedSailingDisplay();
+    if (selectedForecastColumn > 0) {
+        highlightForecastColumn(selectedForecastColumn);
+    }
 }
 
 function parseCoordinates(input) {
@@ -499,7 +514,7 @@ async function handleSearch(event) {
 
 let mapInstance = null;
 let mapMarker = null;
-let selectedForecastColumn = 1;
+let selectedForecastColumn = 0;
 
 function directionToDegrees(direction) {
     const mapping = {
@@ -551,31 +566,25 @@ function updateMarkerFromSelectedColumn() {
     }
 }
 
-function updateSelectedSailingDisplay() {
+function updateWeatherPanelFromSelectedForecast() {
     const forecast = getForecastByColumn(selectedForecastColumn);
-    const selectedText = elements.sailingSelectedText;
-    const baseWindElement = elements.sailingBaseWind;
-    const gustWindElement = elements.sailingGustWind;
-    if (!selectedText || !baseWindElement || !gustWindElement) return;
-
     if (!forecast) {
-        selectedText.textContent = 'Keine Auswahl.';
-        baseWindElement.textContent = '-- kt';
-        gustWindElement.textContent = '-- kt';
-        baseWindElement.style.color = '';
-        gustWindElement.style.color = '';
+        displayWeather(weatherData);
         return;
     }
 
-    selectedText.textContent = `${forecast.dateLabel}, ${forecast.hour} Uhr`;
-    const baseWind = kmhToKnots(forecast.speed);
-    const gustWind = kmhToKnots(forecast.gusts);
-    const baseColor = windSpeedBackground(baseWind);
-    const gustColor = gustSpeedBackground(gustWind);
-    baseWindElement.textContent = `${baseWind.toFixed(1)} kt`;
-    gustWindElement.textContent = `${gustWind.toFixed(1)} kt`;
-    baseWindElement.style.color = baseColor;
-    gustWindElement.style.color = gustColor;
+    if (elements.temperature) {
+        elements.temperature.textContent = `${forecast.temp}`;
+    }
+    if (elements.windSpeed) {
+        elements.windSpeed.textContent = `${kmhToKnots(forecast.speed)}`;
+    }
+    if (elements.windGusts) {
+        elements.windGusts.textContent = `${kmhToKnots(forecast.gusts)}`;
+    }
+    if (elements.windDirection) {
+        elements.windDirection.textContent = formatWindDirection(forecast.direction, forecast.directionDegrees);
+    }
 }
 
 function highlightForecastColumn(columnIndex) {
@@ -594,7 +603,7 @@ function highlightForecastColumn(columnIndex) {
     });
 
     updateMarkerFromSelectedColumn();
-    updateSelectedSailingDisplay();
+    updateWeatherPanelFromSelectedForecast();
 }
 
 function attachHourlyForecastClickHandlers(table) {

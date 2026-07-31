@@ -166,37 +166,32 @@ body {
     line-height: 1.5;
 }
 
-.sailing-advice-box strong {
-    display: block;
-    margin-bottom: 0.45rem;
-    font-size: 1rem;
-}
-
-.sailing-advice-box p {
-    margin: 0 0 0.75rem;
-    color: #22315a;
-}
-
-.sailing-values {
-    display: flex;
+.sailing-advice-columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1rem;
-    flex-wrap: wrap;
-    margin-bottom: 0.75rem;
 }
 
-.sailing-values span {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    font-weight: 600;
+.sailing-advice-card {
+    background: rgba(255, 255, 255, 0.98);
+    border-radius: 16px;
+    padding: 1rem;
+    border: 1px solid rgba(30, 60, 114, 0.1);
 }
 
-.sailing-values strong {
-    display: inline-block;
-    min-width: 4.5rem;
-    text-align: right;
+.sailing-advice-card strong {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+    color: #18305f;
 }
 
+.sailing-advice-card p {
+    margin: 0;
+    color: #22315a;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
 #locationName {
     cursor: pointer;
 }
