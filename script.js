@@ -82,6 +82,43 @@ function degreesToDirection(degrees) {
     return 'NW';
 }
 
+function interpolateColor(start, end, t) {
+    return [
+        Math.round(start[0] + (end[0] - start[0]) * t),
+        Math.round(start[1] + (end[1] - start[1]) * t),
+        Math.round(start[2] + (end[2] - start[2]) * t)
+    ];
+}
+
+function windSpeedBackground(speedKnots) {
+    const stops = [
+        { threshold: 0, color: [93, 153, 255] },
+        { threshold: 6, color: [173, 216, 230] },
+        { threshold: 10, color: [175, 221, 150] },
+        { threshold: 12, color: [255, 229, 153] },
+        { threshold: 15, color: [255, 170, 130] },
+        { threshold: 30, color: [255, 115, 115] }
+    ];
+    let prev = stops[0];
+
+    for (let i = 1; i < stops.length; i += 1) {
+        const current = stops[i];
+        if (speedKnots <= current.threshold) {
+            const range = current.threshold - prev.threshold;
+            const t = range === 0 ? 0 : Math.min(1, Math.max(0, (speedKnots - prev.threshold) / range));
+            const [r, g, b] = interpolateColor(prev.color, current.color, t);
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+        prev = current;
+    }
+    const last = stops[stops.length - 1].color;
+    return `rgb(${last[0]}, ${last[1]}, ${last[2]})`;
+}
+
+function windSpeedTextColor(speedKnots) {
+    return speedKnots > 11 ? '#222' : '#111';
+}
+
 function buildHourlyForecastFromOpenMeteo(data) {
     const timeStrings = data.hourly?.time || [];
     const temperatures = data.hourly?.temperature_2m || [];
@@ -241,10 +278,18 @@ function displayHourlyForecast() {
     html += '<tr class="time-row"><th class="label-cell empty-cell"></th>' + headerRow.map(cell => `<th>${cell}</th>`).join('') + '</tr>';
     html += '</thead><tbody>';
 
-    rows.forEach(row => {
+    rows.forEach((row, rowIndex) => {
         html += '<tr>';
         html += `<th class="label-cell">${row.label}</th>`;
-        html += row.values.map(value => `<td>${value}</td>`).join('');
+        html += row.values.map((value, colIndex) => {
+            if (rowIndex === 0) {
+                const speed = Number(value);
+                const background = windSpeedBackground(speed);
+                const color = windSpeedTextColor(speed);
+                return `<td style="background:${background};color:${color}">${value}</td>`;
+            }
+            return `<td>${value}</td>`;
+        }).join('');
         html += '</tr>';
     });
     html += '</tbody>';
