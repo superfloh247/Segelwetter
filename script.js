@@ -240,6 +240,7 @@ function buildHourlyForecastFromOpenMeteo(data, marineData) {
     const windSpeeds = data.hourly?.windspeed_10m || [];
     const windDirections = data.hourly?.winddirection_10m || [];
     const windGusts = data.hourly?.windgusts_10m || [];
+    const capes = data.hourly?.cape || [];
     const waveHeights = marineData?.hourly?.wave_height;
     const seaSurfaceTemps = data.hourly?.sea_surface_temperature;
 
@@ -254,6 +255,7 @@ function buildHourlyForecastFromOpenMeteo(data, marineData) {
         const hour = time.toLocaleTimeString('de-DE', { hour: '2-digit', hour12: false });
         const dateLabel = time.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
         const directionDegrees = Number(windDirections[i] ?? 0);
+        const capeVal = (capes && i < capes.length && capes[i] != null) ? Number(capes[i]) : null;
         const waveHeightVal = (waveHeights && i < waveHeights.length && waveHeights[i] != null) ? Number(waveHeights[i]) : null;
         const seaSurfaceVal = (seaSurfaceTemps && i < seaSurfaceTemps.length && seaSurfaceTemps[i] != null) ? Number(seaSurfaceTemps[i]) : null;
         forecast.push({
@@ -262,6 +264,7 @@ function buildHourlyForecastFromOpenMeteo(data, marineData) {
             speed: Number(windSpeeds[i] ?? 0),
             gusts: Number(windGusts[i] ?? windSpeeds[i] ?? 0),
             temp: Math.round(Number(temperatures[i] ?? 0)),
+            cape: capeVal,
             waveHeight: waveHeightVal,
             seaSurfaceTemp: seaSurfaceVal,
             direction: degreesToDirection(directionDegrees),
@@ -279,7 +282,7 @@ async function fetchWeatherForCoords(lat, lng) {
     const url = new URL('https://api.open-meteo.com/v1/forecast');
     url.searchParams.set('latitude', String(lat));
     url.searchParams.set('longitude', String(lng));
-    url.searchParams.set('hourly', 'temperature_2m,windspeed_10m,winddirection_10m,windgusts_10m,sea_surface_temperature');
+    url.searchParams.set('hourly', 'temperature_2m,windspeed_10m,winddirection_10m,windgusts_10m,sea_surface_temperature,cape');
     url.searchParams.set('current_weather', 'true');
     url.searchParams.set('windspeed_unit', 'kmh');
     url.searchParams.set('timezone', 'auto');
@@ -481,8 +484,24 @@ function displayHourlyForecast() {
         }
     ];
 
+    const hasCape = weatherData.hourlyForecast.some(item => typeof item.cape === 'number' && item.cape > 500);
     const hasSeaTemp = weatherData.hourlyForecast.some(item => typeof item.seaSurfaceTemp === 'number' && !isNaN(item.seaSurfaceTemp));
     const hasWaveHeight = weatherData.hourlyForecast.some(item => typeof item.waveHeight === 'number' && !isNaN(item.waveHeight));
+
+    if (hasCape) {
+        rows.push({
+            label: 'Gewitter',
+            values: weatherData.hourlyForecast.map(item => {
+                if (typeof item.cape !== 'number' || isNaN(item.cape) || item.cape <= 500) {
+                    return '';
+                }
+                if (item.cape > 1500) {
+                    return '<span class="cape-danger">!!</span>';
+                }
+                return '!';
+            })
+        });
+    }
 
     if (hasSeaTemp) {
         rows.push({

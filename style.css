@@ -313,6 +313,12 @@ body {
     to { transform: rotate(360deg); }
 }
 
+.cape-danger {
+    display: inline-block;
+    color: #bf1f1f;
+    font-weight: 900;
+}
+
 .container {
     max-width: 1200px;
     margin: 0 auto;
