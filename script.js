@@ -1,156 +1,155 @@
 // Segelwetter - Wettervorhersage für Segler
 
-// Wetterdaten (Beispiel-Daten)
 const weatherData = {
-    location: "Deutschland",
+    location: 'Standort unbekannt',
     wind: {
-        speed: 12,
-        direction: "NW",
-        gusts: 18
+        speed: 0,
+        direction: '--',
+        gusts: 0
     },
-    temperature: 16,
-    humidity: 75,
-    pressure: 1013,
-    conditions: "Partly Cloudy",
-    forecast: [
-        { day: "Heute", wind: "NW 12 km/h", temp: "16°C" },
-        { day: "Morgen", wind: "SW 15 km/h", temp: "14°C" },
-        { day: "Übermorgen", wind: "N 10 km/h", temp: "17°C" }
-    ]
+    temperature: '--'
 };
 
-// DOM-Elemente
 const elements = {
-    location: document.getElementById('location'),
-    windSpeed: document.getElementById('wind-speed'),
-    windDirection: document.getElementById('wind-direction'),
+    locationName: document.getElementById('locationName'),
+    windSpeed: document.getElementById('windSpeed'),
+    windDirection: document.getElementById('windDirection'),
     temperature: document.getElementById('temperature'),
-    humidity: document.getElementById('humidity'),
-    pressure: document.getElementById('pressure'),
-    conditions: document.getElementById('conditions')
+    windGusts: document.getElementById('windGusts'),
+    searchBtn: document.getElementById('searchBtn'),
+    searchModal: document.getElementById('searchModal'),
+    searchInput: document.getElementById('searchInput'),
+    searchSubmit: document.getElementById('searchSubmit')
 };
 
-// Wetter-Icon-Klasse bestimmen
-function getWeatherIcon(condition) {
-    const iconMap = {
-        'Sunny': '☀️',
-        'Partly Cloudy': '⛅',
-        'Cloudy': '☁️',
-        'Rain': '🌧️',
-        'Windy': '💨'
-    };
-    return iconMap[condition] || '🌤️';
-}
-
-// Wetterdaten formatieren
 function formatWindDirection(direction) {
     const directionMap = {
-        'N': 'Norden',
-        'NE': 'Nord-Osten',
-        'E': 'Osten',
-        'SE': 'Süd-Osten',
-        'S': 'Süden',
-        'SW': 'Süd-West',
-        'W': 'Westen',
-        'NW': 'Nord-West'
+        N: 'Norden',
+        NE: 'Nord-Osten',
+        E: 'Osten',
+        SE: 'Süd-Osten',
+        S: 'Süden',
+        SW: 'Süd-West',
+        W: 'Westen',
+        NW: 'Nord-West'
     };
     return directionMap[direction] || direction;
 }
 
-// Wetterdaten anzeigen
 function displayWeather(data) {
-    if (!elements.location) return;
-
-    elements.location.textContent = data.location;
-    elements.windSpeed.textContent = `${data.wind.speed} km/h`;
-    elements.windDirection.textContent = formatWindDirection(data.wind.direction);
-    elements.temperature.textContent = `${data.temperature}°C`;
-    elements.humidity.textContent = `${data.humidity}%`;
-    elements.pressure.textContent = `${data.pressure} hPa`;
-    elements.conditions.textContent = data.conditions;
-
-    // Icon setzen
-    const iconElement = document.querySelector('.weather-icon');
-    if (iconElement) {
-        iconElement.textContent = getWeatherIcon(data.conditions);
+    if (elements.locationName) {
+        elements.locationName.textContent = data.location;
     }
-}
-
-// Vorhersage anzeigen
-function displayForecast(forecast) {
-    const forecastContainer = document.getElementById('forecast');
-    if (!forecastContainer) return;
-
-    forecastContainer.innerHTML = forecast.map(day => `
-        <div class="forecast-day">
-            <span class="day-name">${day.day}</span>
-            <span class="wind">${day.wind}</span>
-            <span class="temp">${day.temp}</span>
-        </div>
-    `).join('');
-}
-
-// Simulierte Wetterdaten aktualisieren (für Demo)
-function updateWeather() {
-    // In einer echten Anwendung würde hier eine API-Anfrage stattfinden
-    console.log('Wetterdaten aktualisiert');
-    
-    // Beispiel: Zufällige Windgeschwindigkeit für Demo
-    const randomWind = Math.floor(Math.random() * 20) + 5;
-    weatherData.wind.speed = randomWind;
-    
     if (elements.windSpeed) {
-        elements.windSpeed.textContent = `${randomWind} km/h`;
+        elements.windSpeed.textContent = `${data.wind.speed} km/h`;
+    }
+    if (elements.windDirection) {
+        elements.windDirection.textContent = formatWindDirection(data.wind.direction);
+    }
+    if (elements.temperature) {
+        elements.temperature.textContent = `${data.temperature}`;
+    }
+    if (elements.windGusts) {
+        elements.windGusts.textContent = `${data.wind.gusts} km/h`;
     }
 }
 
-// Segel-Bewertung berechnen
-function calculateSailingRating(windSpeed, conditions) {
-    let rating = 0;
-    
-    // Windgeschwindigkeit (idealerweise 10-25 km/h)
-    if (windSpeed >= 10 && windSpeed <= 25) {
-        rating += 3;
-    } else if (windSpeed > 25) {
-        rating += 1; // Zu stark
-    } else {
-        rating += 2; // Zu schwach
-    }
-    
-    // Wetterbedingungen
-    if (conditions === 'Sunny' || conditions === 'Partly Cloudy') {
-        rating += 2;
-    } else if (conditions === 'Windy') {
-        rating += 1;
-    } else {
-        rating -= 1; // Regen oder Bewölkt
-    }
-    
-    return Math.max(0, Math.min(5, rating));
+function parseCoordinates(input) {
+    const parts = input.split(',').map(part => part.trim());
+    if (parts.length !== 2) return null;
+    const lat = parseFloat(parts[0]);
+    const lng = parseFloat(parts[1]);
+    if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
+    return { lat, lng };
 }
 
-// Bewertung anzeigen
-function displaySailingRating(windSpeed, conditions) {
-    const rating = calculateSailingRating(windSpeed, conditions);
-    const ratingElement = document.getElementById('sailing-rating');
-    
-    if (ratingElement) {
-        const stars = '★'.repeat(rating) + '☆'.repeat(5 - rating);
-        ratingElement.innerHTML = `Segel-Bewertung: ${stars}`;
+function openModal(modal) {
+    if (modal) {
+        modal.classList.remove('hidden');
     }
 }
 
-// Initialisierung
-document.addEventListener('DOMContentLoaded', function() {
+function closeModal(modal) {
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+function handleSearch(event) {
+    event.preventDefault();
+    const query = elements.searchInput?.value.trim();
+    if (!query) return;
+    const coords = parseCoordinates(query);
+    if (!coords) {
+        alert('Bitte gültige Koordinaten im Format "lat, lon" eingeben.');
+        return;
+    }
+    weatherData.location = `Lat ${coords.lat.toFixed(6)}, Lon ${coords.lng.toFixed(6)}`;
+    weatherData.temperature = 18;
+    weatherData.wind.speed = 14;
+    weatherData.wind.gusts = 20;
+    weatherData.wind.direction = 'NW';
     displayWeather(weatherData);
-    displayForecast(weatherData.forecast);
-    displaySailingRating(weatherData.wind.speed, weatherData.conditions);
-    
-    // Alle 5 Minuten aktualisieren (simuliert)
-    setInterval(updateWeather, 300000);
-});
+    updateMap(coords.lat, coords.lng);
+    closeModal(elements.searchModal);
+}
 
-// Export für Modul-Nutzung
+let mapInstance = null;
+let mapMarker = null;
+
+function setupMap() {
+    if (typeof L === 'undefined') {
+        console.error('Leaflet ist nicht geladen.');
+        return;
+    }
+    mapInstance = L.map('map').setView([52.444476, 13.675989], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(mapInstance);
+    mapMarker = L.marker([52.444476, 13.675989]).addTo(mapInstance);
+}
+
+function updateMap(lat, lng) {
+    if (!mapInstance) return;
+    mapInstance.setView([lat, lng], 12);
+    if (!mapMarker) {
+        mapMarker = L.marker([lat, lng]).addTo(mapInstance);
+    } else {
+        mapMarker.setLatLng([lat, lng]);
+    }
+}
+
+function setupModalHandlers() {
+    if (elements.searchBtn) {
+        elements.searchBtn.addEventListener('click', () => openModal(elements.searchModal));
+    }
+    const closeButtons = document.querySelectorAll('.modal .close');
+    closeButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const modal = button.closest('.modal');
+            closeModal(modal);
+        });
+    });
+    if (elements.searchModal) {
+        elements.searchModal.addEventListener('click', event => {
+            if (event.target === elements.searchModal) {
+                closeModal(elements.searchModal);
+            }
+        });
+    }
+    if (elements.searchSubmit) {
+        elements.searchSubmit.addEventListener('click', handleSearch);
+    }
+}
+
+function initApp() {
+    displayWeather(weatherData);
+    setupMap();
+    setupModalHandlers();
+}
+
+document.addEventListener('DOMContentLoaded', initApp);
+
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { weatherData, calculateSailingRating };
+    module.exports = { weatherData, parseCoordinates };
 }
