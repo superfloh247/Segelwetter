@@ -5,6 +5,8 @@ const FORECAST_HOURS = 7 * 24;
 
 const STORAGE_KEY_FAVORITES = 'segelwetter:favorites';
 
+let isLoadingBookmark = false;
+
 const weatherData = {
     location: 'Standort unbekannt',
     coords: {
@@ -55,17 +57,21 @@ function deleteFavorite(name) {
     renderBookmarks();
 }
 
-function renderBookmarks() {
+function renderBookmarks(loadingName = null) {
     if (!elements.bookmarksList) return;
     const favorites = loadFavorites();
     elements.bookmarksList.innerHTML = favorites.map(fav => {
+        const isDisabled = isLoadingBookmark || fav.name === loadingName;
+        const disabledClass = isDisabled ? ' bookmark-item-disabled' : '';
+        const spinner = (fav.name === loadingName) ? '<span class="bookmark-spinner"><svg class="spinner-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="3" fill="none"/></svg></span>' : '';
         return `
-            <button class="bookmark-item" type="button" data-name="${fav.name}">
-                <span class="bookmark-label">${fav.name}</span>
-                <span class="bookmark-remove" data-action="remove">×</span>
-            </button>
-        `;
-    }).join('');
+             <button class="bookmark-item${disabledClass}" type="button" data-name="${fav.name}" ${isDisabled ? 'disabled' : ''}>
+                 <span class="bookmark-label">${fav.name}</span>
+                 ${spinner}
+                 <span class="bookmark-remove" data-action="remove">×</span>
+             </button>
+         `;
+     }).join('');
 
     elements.bookmarksList.querySelectorAll('.bookmark-item').forEach(button => {
         button.addEventListener('click', async event => {
@@ -76,15 +82,23 @@ function renderBookmarks() {
                 const confirmed = window.confirm(`Favorit "${name}" wirklich löschen?`);
                 if (confirmed) {
                     deleteFavorite(name);
-                }
+                 }
                 return;
-            }
+             }
+            // Verhindere parallele Ladevorgänge – Race Condition fix
+            if (isLoadingBookmark) return;
             const favorite = favorites.find(item => item.name === name);
-            if (favorite) {
+            if (!favorite) return;
+            isLoadingBookmark = true;
+            renderBookmarks(name);
+            try {
                 await loadWeatherForCoords(favorite.lat, favorite.lng, false);
                 weatherData.location = favorite.name;
                 displayWeather(weatherData);
                 updateSailingAdvice();
+             } finally {
+                isLoadingBookmark = false;
+                renderBookmarks(null);
             }
         });
     });

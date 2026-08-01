@@ -132,6 +132,31 @@ body {
     background: rgba(30, 60, 114, 0.08);
 }
 
+.bookmark-item-disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.bookmark-spinner {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 0.25rem;
+}
+
+.spinner-icon {
+    width: 16px;
+    height: 16px;
+    animation: spin 1s linear infinite;
+    stroke: #1e3c72;
+    stroke-linecap: round;
+    stroke-dasharray: 60 40;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
 .bookmark-label {
     flex: 1;
     min-width: 0;
