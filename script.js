@@ -825,7 +825,3 @@ async function initApp() {
 }
 
 document.addEventListener('DOMContentLoaded', initApp);
-
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { weatherData, parseCoordinates };
-}

@@ -25,7 +25,7 @@ Stack: HTML/CSS/vanilla JS, keine Build-Pipeline, direkt lauffähig.
 9. **`parseCoordinates` akzeptiert nur `lat,lon` Format** – keine geografischen Namen (OpenStreetMap Nominim API verfügbar).
 
 ### 🟢 Niedrig / Kosmetisch
-10. **`if (typeof module !== 'undefined')` am Ende** (`script.js:818`) – Node.js-Export wird nie benötigt; tote Code-Zeile.
+10. ~~**`if (typeof module !== 'undefined')` am Ende**~~ — **GEFIXT:** Toter Node.js-Export-Code entfernt. ✅
 11. **Kein `.gitignore`** – kein Build-Artifact, aber auch keine zu ignorierende Datei existiert. Optional.
 12. **ETag/Cache-Control für statische Dateien nicht konfiguriert** – betrifft nur Self-Hosting; GitHub Pages nutzt bereits Cache.
 
@@ -43,8 +43,8 @@ Stack: HTML/CSS/vanilla JS, keine Build-Pipeline, direkt lauffähig.
 
 ## Empfohlene nächste Schritte
 1. [P1] Caching der API-Antworten (z.B. `localStorage` mit 30min TTL)
-2. [P1] `AbortController` + 8s timeout für fetch-Calls
+2. ~~[P1] `AbortController` + 8s timeout für fetch-Calls~~ — ✅ GEFIXT
 3. [P1] Sichtbares Error-Banner statt nur Console.warn
 4. [P2] Inline-Styles durch CSS utility classes ersetzen
 5. [P2] Nominatim Geocoding für Ortsname-Suche
-6. [P3] `module.exports` entfernen
+6. ~~[P3] `module.exports` entfernen~~ — ✅ GEFIXT
