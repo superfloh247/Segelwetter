@@ -303,10 +303,12 @@ async function fetchWeatherForCoords(lat, lng) {
     url.searchParams.set('start_date', start.toISOString().slice(0, 10));
     url.searchParams.set('end_date', end.toISOString().slice(0, 10));
 
-    const response = await fetch(url.href);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    const response = await fetch(url.href, { signal: controller.signal }).finally(() => clearTimeout(timer));
     if (!response.ok) {
         throw new Error(`Open-Meteo-Antwort fehlerhaft: ${response.status}`);
-    }
+     }
     return response.json();
 }
 
@@ -322,10 +324,12 @@ async function fetchMarineWaveHeight(lat, lng) {
     url.searchParams.set('start_date', start.toISOString().slice(0, 10));
     url.searchParams.set('end_date', end.toISOString().slice(0, 10));
 
-    const response = await fetch(url.href);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    const response = await fetch(url.href, { signal: controller.signal }).finally(() => clearTimeout(timer));
     if (!response.ok) {
         throw new Error(`Marine Open-Meteo-Antwort fehlerhaft: ${response.status}`);
-    }
+     }
     return response.json();
 }
 

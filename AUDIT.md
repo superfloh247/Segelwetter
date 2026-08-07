@@ -14,7 +14,7 @@ Stack: HTML/CSS/vanilla JS, keine Build-Pipeline, direkt lauffähig.
 ### 🟠 Hoch
 1. **API-Rate-Limit nicht berücksichtigt** – `loadWeatherForCoords` kann jederzeit aufgerufen werden; Open-Meteo hat ein faires Limit (ca. 200–500 req/Tag). Keine Caching-Strategie → Gefahr von throttled Requests bei schnellem Klick-Feuern.
 2. **Kein Error-Banner im DOM** – Fehler werden nur in die Console gewandelt; `displayWeather()` zeigt `-` ohne sichtbare Meldung für den User.
-3. **Marine API timeout fehlt** – `fetchMarineWaveHeight` läuft ohne `AbortController`/timeout; bei langsamem Netzwerk blockiert der Loading-Screen theoretisch unbegrenzt.
+3. ~~**Marine API timeout fehlt**~~ — **GEFIXT:** Beide `fetch*`-Funktionen verwenden nun `AbortController` mit 8s Timeout. ✅
 
 ### 🟡 Mittel
 4. **Inline-Styles im Forecast-Table** (`script.js:546-555`) – Farben werden per `style="background:..."` gesetzt statt über CSS-Klassen → schlechte Wartbarkeit, kein Dark-Mode möglich.
