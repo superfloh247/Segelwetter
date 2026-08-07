@@ -598,6 +598,37 @@ function showLoadingOverlay(show) {
     overlay.classList.toggle('hidden', !show);
 }
 
+function showIOSInstallPrompt() {
+    if (!isIOS || isStandalone) return;
+    try {
+        const dismissed = localStorage.getItem('segelwetter:iosInstallDismissed');
+        if (dismissed) return;
+    } catch (error) {
+        // localStorage not available
+    }
+    const overlay = document.getElementById('iosInstallOverlay');
+    if (!overlay) return;
+    overlay.classList.remove('hidden');
+    const dismissBtn = document.getElementById('iosInstallDismiss');
+    if (dismissBtn) {
+        dismissBtn.addEventListener('click', () => {
+            overlay.classList.add('hidden');
+            try {
+                localStorage.setItem('segelwetter:iosInstallDismissed', '1');
+            } catch (error) {
+                // localStorage not available
+            }
+        });
+    }
+    // Auch schließbar per Backdrop-Klick
+    const backdrop = overlay.querySelector('.ios-install-backdrop');
+    if (backdrop) {
+        backdrop.addEventListener('click', () => {
+            dismissBtn?.click();
+        });
+    }
+}
+
 function isTouchDevice() {
     return ('ontouchstart' in window) || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0;
 }
@@ -827,6 +858,7 @@ async function initApp() {
          });
      }
     await loadWeatherForCoords(weatherData.coords.lat, weatherData.coords.lng, false);
+    showIOSInstallPrompt();
 }
 
 document.addEventListener('DOMContentLoaded', initApp);

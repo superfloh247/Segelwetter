@@ -522,3 +522,83 @@ footer {
     border-radius: 5px;
     margin: 1rem 0;
 }
+
+/* iOS Install Overlay */
+.ios-install-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ios-install-overlay.hidden {
+    display: none;
+}
+
+.ios-install-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+}
+
+.ios-install-content {
+    position: relative;
+    background: #fff;
+    border-radius: 18px;
+    padding: 2rem 1.5rem;
+    max-width: 320px;
+    width: 85%;
+    text-align: center;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
+}
+
+.ios-install-content h2 {
+    color: #1e3c72;
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.ios-install-steps {
+    list-style: none;
+    counter-reset: step-counter;
+    padding: 0;
+    margin: 0 0 1.5rem 0;
+    text-align: left;
+}
+
+.ios-install-steps li {
+    counter-increment: step-counter;
+    padding: 0.4rem 0;
+    color: #333;
+    font-size: 0.95rem;
+    line-height: 1.4;
+}
+
+.ios-install-steps li::before {
+    content: counter(step-counter) ".";
+    font-weight: 700;
+    color: #1e3c72;
+    margin-right: 0.25rem;
+}
+
+.share-icon {
+    font-size: 1.1rem;
+}
+
+.ios-install-dismiss {
+    background: rgba(30, 60, 114, 0.95);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 0.7rem 1.8rem;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.ios-install-dismiss:hover {
+    background: #1e3c72;
+}

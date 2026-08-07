@@ -101,9 +101,23 @@
         </div>
     </div>
 
-    <div id="loadingOverlay" class="loading-overlay hidden">
+	<div id="loadingOverlay" class="loading-overlay hidden">
         <div class="loading-spinner"></div>
         <p>Lädt Wetterdaten…</p>
+    </div>
+
+    <!-- iOS Install Prompt Overlay -->
+    <div id="iosInstallOverlay" class="ios-install-overlay hidden">
+        <div class="ios-install-backdrop"></div>
+        <div class="ios-install-content">
+            <h2>📱 Zum Home-Bildschirm hinzufügen</h2>
+            <ol class="ios-install-steps">
+                <li>Tippe auf das Teilen-Symbol <span class="share-icon">⬆️</span></li>
+                <li>Wähle <strong>"Zum Home-Bildschirm"</strong></li>
+                <li>Tippe auf <strong>"Hinzufügen"</strong></li>
+            </ol>
+            <button id="iosInstallDismiss" class="ios-install-dismiss">Verstanden</button>
+        </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
