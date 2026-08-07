@@ -559,7 +559,14 @@ function displayHourlyForecast() {
     html += '</tbody>';
 
     table.innerHTML = html;
-    highlightForecastColumn(selectedForecastColumn);
+    
+    // Auto-select first data column (index 1) if no column is selected yet
+    // Column 0 is the label cell, so first weather data starts at column 1
+    if (selectedForecastColumn < 0) {
+        highlightForecastColumn(1);
+    } else {
+        highlightForecastColumn(selectedForecastColumn);
+    }
 }
 
 function parseCoordinates(input) {
@@ -613,7 +620,7 @@ async function handleSearch(event) {
 
 let mapInstance = null;
 let mapMarker = null;
-let selectedForecastColumn = 0;
+let selectedForecastColumn = -1; // -1 means no column selected yet; auto-select on first data load
 
 function directionToDegrees(direction) {
     const mapping = {
