@@ -6,6 +6,16 @@ const FORECAST_HOURS = 7 * 24;
 const STORAGE_KEY_FAVORITES = 'segelwetter:favorites';
 
 let isLoadingBookmark = false;
+let mapInstance = null;
+let mapMarker = null;
+let selectedForecastColumn = -1; // -1 means no column selected yet; auto-select on first data load
+
+const isIOS =
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+const isStandalone = window.matchMedia("(display-mode: standalone)").matches
+                  || window.navigator.standalone === true;
 
 const weatherData = {
     location: 'Standort unbekannt',
@@ -622,10 +632,6 @@ async function handleSearch(event) {
     closeModal(elements.searchModal);
 }
 
-let mapInstance = null;
-let mapMarker = null;
-let selectedForecastColumn = -1; // -1 means no column selected yet; auto-select on first data load
-
 function directionToDegrees(direction) {
     const mapping = {
         N: 0,
@@ -715,7 +721,6 @@ function highlightForecastColumn(columnIndex) {
     updateMarkerFromSelectedColumn();
     updateWeatherPanelFromSelectedForecast();
 }
-
 
 function setupMap() {
     if (typeof L === 'undefined') {
