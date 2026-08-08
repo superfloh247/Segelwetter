@@ -492,6 +492,27 @@ footer {
     text-decoration: underline;
 }
 
+/* Pull-to-Refresh (Standalone) */
+.pull-to-refresh-indicator {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 3px;
+    width: 0;
+    background: linear-gradient(90deg, #4a90d9, #5bb8f7);
+    z-index: 9999;
+    transition: none;
+    border-radius: 0 2px 2px 0;
+}
+
+.pull-to-refresh-indicator.active {
+    transition: none;
+}
+
+.pull-to-refresh-indicator.reset {
+    transition: width 0.3s ease;
+}
+
 /* Animationen */
 @keyframes fadeIn {
     from {

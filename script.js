@@ -814,6 +814,61 @@ function refreshCoordsText() {
     }
 }
 
+function setupPullToRefresh() {
+    if (!isStandalone && !isIOS) return;
+    const indicator = document.getElementById('pullToRefreshIndicator');
+    if (!indicator) return;
+
+    let startY = 0;
+    let currentY = 0;
+    let dragging = false;
+    let refreshing = false;
+    const THRESHOLD = 80;
+
+    document.addEventListener('touchstart', event => {
+        if (window.scrollY !== 0 || refreshing) return;
+        dragging = true;
+        startY = event.touches[0].pageY;
+    }, { passive: true });
+
+    document.addEventListener('touchmove', event => {
+        if (!dragging || refreshing) return;
+        currentY = event.touches[0].pageY - startY;
+        if (currentY < 0) return;
+        const widthPercent = Math.min(100, (currentY / THRESHOLD) * 100);
+        indicator.style.width = widthPercent + '%';
+        indicator.classList.add('active');
+    }, { passive: true });
+
+    document.addEventListener('touchend', async () => {
+        if (!dragging) {
+            dragging = false;
+            return;
+        }
+        dragging = false;
+        if (currentY >= THRESHOLD && !refreshing) {
+            refreshing = true;
+            indicator.style.width = '100%';
+            await loadWeatherForCoords(weatherData.coords.lat, weatherData.coords.lng, false);
+            setTimeout(() => {
+                indicator.classList.add('reset');
+                indicator.style.width = '0';
+                setTimeout(() => {
+                    indicator.classList.remove('active', 'reset');
+                    refreshing = false;
+                }, 300);
+            }, 500);
+        } else {
+            indicator.classList.add('reset');
+            indicator.style.width = '0';
+            setTimeout(() => {
+                indicator.classList.remove('active', 'reset');
+            }, 300);
+        }
+        currentY = 0;
+    });
+}
+
 function setupModalHandlers() {
     if (elements.locationName) {
         elements.locationName.addEventListener('click', promptLocationName);
@@ -849,6 +904,7 @@ async function initApp() {
     renderBookmarks();
     setupMap();
     setupModalHandlers();
+    setupPullToRefresh();
     const forecastTable = document.getElementById('hourlyForecastTable');
     if (forecastTable) {
         forecastTable.addEventListener('click', event => {
