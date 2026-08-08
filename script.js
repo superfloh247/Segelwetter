@@ -67,50 +67,91 @@ function deleteFavorite(name) {
     renderBookmarks();
 }
 
+// Einmaliger Event-Listener auf Container-Ebene (Event-Delegation) – verhindert Memory-Leak durch pro-Button Listener
+let bookmarksClickHandler = null;
+
+function setupBookmarkDelegation() {
+    if (!elements.bookmarksList || bookmarksClickHandler) return;
+
+    bookmarksClickHandler = async event => {
+        const button = event.target.closest('.bookmark-item');
+        if (!button) return;
+
+        const removeBtn = event.target.closest('[data-action="remove"]');
+        const name = button.dataset.name;
+
+        if (removeBtn) {
+            event.stopPropagation();
+            const confirmed = window.confirm(`Favorit "${name}" wirklich löschen?`);
+            if (confirmed) {
+                deleteFavorite(name);
+            }
+            return;
+        }
+
+        // Verhindere parallele Ladevorgänge – Race Condition fix
+        if (isLoadingBookmark) return;
+        const favorites = loadFavorites();
+        const favorite = favorites.find(item => item.name === name);
+        if (!favorite) return;
+
+        isLoadingBookmark = true;
+        renderBookmarks(name);
+        try {
+            await loadWeatherForCoords(favorite.lat, favorite.lng, false);
+            weatherData.location = favorite.name;
+            displayWeather(weatherData);
+            updateSailingAdvice();
+        } finally {
+            isLoadingBookmark = false;
+            renderBookmarks(null);
+        }
+    };
+
+    elements.bookmarksList.addEventListener('click', bookmarksClickHandler);
+}
+
 function renderBookmarks(loadingName = null) {
     if (!elements.bookmarksList) return;
     const favorites = loadFavorites();
-    elements.bookmarksList.innerHTML = favorites.map(fav => {
-        const isDisabled = isLoadingBookmark || fav.name === loadingName;
-        const disabledClass = isDisabled ? ' bookmark-item-disabled' : '';
-        const spinner = (fav.name === loadingName) ? '<span class="bookmark-spinner"><svg class="spinner-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="3" fill="none"/></svg></span>' : '';
-        return `
-             <button class="bookmark-item${disabledClass}" type="button" data-name="${fav.name}" ${isDisabled ? 'disabled' : ''}>
-                 <span class="bookmark-label">${fav.name}</span>
-                 ${spinner}
-                 <span class="bookmark-remove" data-action="remove">×</span>
-             </button>
-         `;
-     }).join('');
 
-    elements.bookmarksList.querySelectorAll('.bookmark-item').forEach(button => {
-        button.addEventListener('click', async event => {
-            const actionTarget = event.target.closest('[data-action="remove"]');
-            const name = button.dataset.name;
-            if (actionTarget) {
-                event.stopPropagation();
-                const confirmed = window.confirm(`Favorit "${name}" wirklich löschen?`);
-                if (confirmed) {
-                    deleteFavorite(name);
-                 }
-                return;
-             }
-            // Verhindere parallele Ladevorgänge – Race Condition fix
-            if (isLoadingBookmark) return;
-            const favorite = favorites.find(item => item.name === name);
-            if (!favorite) return;
-            isLoadingBookmark = true;
-            renderBookmarks(name);
-            try {
-                await loadWeatherForCoords(favorite.lat, favorite.lng, false);
-                weatherData.location = favorite.name;
-                displayWeather(weatherData);
-                updateSailingAdvice();
-             } finally {
-                isLoadingBookmark = false;
-                renderBookmarks(null);
-            }
-        });
+    // Container leeren (entfernt auch alte DOM-Nodes → alte Listener werden GC-fähig)
+    elements.bookmarksList.innerHTML = '';
+
+    favorites.forEach(fav => {
+        const isDisabled = isLoadingBookmark || fav.name === loadingName;
+
+        // <button> per DOM-API erstellen – kein innerHTML mit Benutzereingaben
+        const button = document.createElement('button');
+        button.className = 'bookmark-item' + (isDisabled ? ' bookmark-item-disabled' : '');
+        button.type = 'button';
+        button.dataset.name = fav.name;
+        if (isDisabled) {
+            button.disabled = true;
+        }
+
+        // Label als Text-Node (XSS-sicher – wird nicht als HTML geparst)
+        const label = document.createElement('span');
+        label.className = 'bookmark-label';
+        label.textContent = fav.name;
+        button.appendChild(label);
+
+        // Optionaler Spinner (nur SVG, keine Benutzereingaben → sicher)
+        if (fav.name === loadingName) {
+            const spinner = document.createElement('span');
+            spinner.className = 'bookmark-spinner';
+            spinner.innerHTML = '<svg class="spinner-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="3" fill="none"/></svg>';
+            button.appendChild(spinner);
+        }
+
+        // Remove-Button (statischer Text, keine Benutzereingaben → sicher)
+        const removeBtn = document.createElement('span');
+        removeBtn.className = 'bookmark-remove';
+        removeBtn.dataset.action = 'remove';
+        removeBtn.textContent = '×';
+        button.appendChild(removeBtn);
+
+        elements.bookmarksList.appendChild(button);
     });
 }
 
@@ -902,6 +943,7 @@ async function initApp() {
         weatherData.location = saved.location || weatherData.location;
     }
     renderBookmarks();
+    setupBookmarkDelegation();
     setupMap();
     setupModalHandlers();
     setupPullToRefresh();
