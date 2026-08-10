@@ -93,10 +93,11 @@
     </div>
 
     <!-- Modal for location search -->
-    <div id="searchModal" class="modal hidden">
+    <div id="searchModal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Ort suchen">
         <div class="modal-content">
-            <span class="close">&times;</span>
+            <button type="button" class="close" aria-label="Schließen">&times;</button>
             <h2>Ort suchen</h2>
+            <label for="searchInput" class="visually-hidden">Koordinaten oder Ortsname eingeben</label>
             <input type="text" id="searchInput" placeholder="Latitude, Longitude oder Name eingeben" autocomplete="off">
             <button id="searchSubmit" class="ios-button primary">Suchen</button>
         </div>

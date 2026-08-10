@@ -5,13 +5,13 @@
 | Kriterium | Bewertung | Risiko-Level |
 |-----------|-----------|--------------|
 | Architektur & Struktur | Gut (solide Separation of Concerns) | 🟢 Low |
-| HTML-Semantik & Accessibility | Mangelhaft (fehlende ARIA-Attribute, unzureichende Semantik) | 🔴 High |
+| HTML-Semantik & Accessibility | Gut (ARIA, Fokus-Trap, Labels vorhanden) | 🟢 Low |
 | CSS-Qualität & Performance | Gut (modernes CSS, aber BEM-Fehlbenennungen vorhanden) | 🟡 Medium |
-| JavaScript-Qualität | Sehr gut (ES6+, async/await, Fehlerbehandlung) | 🟢 Low |
-| Sicherheit | Mangelhaft (mehrfach `innerHTML` ohne Sanitization) | 🔴 High |
+| JavaScript-Qualität | Sehr gut (ES6+, async/await, Fehlerbehandlung, Event-Delegation) | 🟢 Low |
+| Sicherheit | Gut (DOM-API statt `innerHTML` für Benutzereingaben) | 🟢 Low |
 | Performance | Gut (keine Blockaden, aber Inline-Styles in JS suboptimal) | 🟡 Medium |
 
-**Gesamtbewertung:** Die App ist funktional solide und nutzt moderne Technologien. Kritisch sind die XSS-Schwachstellen durch `innerHTML` und die fehlende Accessibility. Die JavaScript-Architektur ist gut strukturiert, benötigt aber eine Modulareinsatz-Strategie für bessere Wartbarkeit.
+**Gesamtbewertung:** Die App ist funktional solide und nutzt moderne Technologien. Alle kritischen Sicherheits- und Accessibility-Lücken sind geschlossen (XSS via DOM-API, ARIA/Fokus-Management, Form-Labels, Event-Delegation). Verbleibende Optimierungen (CSS Custom Properties, SEO-Meta-Tags) sind niedrig priorisiert.
 
 ---
 
@@ -114,8 +114,8 @@ Das `<main>`-Element hat kein `role` oder `aria-label` zur Orientierung:
 |-------|--------|
 | `lang="de"` auf `<html>` | ✅ |
 | Alle Bilder haben Alt-Texte | ✅ (keine Bilder, N/A) |
-| Formulare haben Labels | ❌ `#searchInput` hat kein `<label>`, nur `placeholder` |
-| Fokus-Management in Modal | ❌ Keine Fokus-Falle beim Öffnen |
+| Formulare haben Labels | ✅ `<label class="visually-hidden">` vorhanden |
+| Fokus-Management in Modal | ✅ Fokus-Trap + Escape-Schließen implementiert |
 | Farbkontraste | ⚠️ Muss mit WCAG 2.1 geprüft werden (dunkler Text auf hellen Hintergründen: meist OK) |
 | Keyboard-Navigation für Karten-Klicks | ❌ Map-Interaktion nur per Maus/Touch |
 
@@ -365,13 +365,22 @@ Das Leaflet-CSS wird über externes `<link>` geladen, was einen zusätzlichen Ro
 
 ## 6. Priorisierte Action-Liste
 
+### ✅ Gelöst
+
+| # | Aufgabe | Status | Umsetzung |
+|---|---------|--------|-----------|
+| 1 | **XSS in `renderBookmarks()` fixen** – `innerHTML` durch DOM-API ersetzen | ✅ Fixed | `script.js`: Buttons, Labels und Remove-Buttons per `document.createElement()` + `.textContent` erstellt. Kein `innerHTML` mehr mit Benutzereingaben. |
+| 2 | **ARIA-Attribute für Modal ergänzen** – `role="dialog"`, `aria-modal`, Fokus-Management | ✅ Fixed | `index.html`: `role="dialog" aria-modal="true" aria-label="Ort suchen"` auf Modal, `<button type="button">` mit `aria-label="Schließen"` als Close-Button. `script.js`: Fokus-Trap (Tab/Shift+Tab zirkuliert), Escape schließt Modal, Auto-Fokus auf Suchfeld beim Öffnen. |
+| 3 | **`<label>` für Suchfeld ergänzen** | ✅ Fixed | `index.html`: `<label for="searchInput" class="visually-hidden">Koordinaten oder Ortsname eingeben</label>`. `style.css`: `.visually-hidden` Klasse vorhanden (screenreader-only). |
+| 8 | **Event-Delegation für Bookmarks** – Memory-Leak verhindern | ✅ Fixed | `script.js`: Einmaliger Listener auf `bookmarksList`-Container (`setupBookmarkDelegation()`). Keine pro-Button-Listener mehr. |
+
 ### 🔴 Sofort (Sprint 1) – Sicherheitskritisch
 
-| # | Aufgabe | Aufwand | Begründung |
-|---|---------|---------|------------|
-| 1 | **XSS in `renderBookmarks()` fixen** – `innerHTML` durch DOM-API ersetzen | 30 min | Persistente XSS-Gefahr, auch wenn aktuell nur eigene Daten |
-| 2 | **ARIA-Attribute für Modal ergänzen** – `role="dialog"`, `aria-modal`, Fokus-Management | 45 min | Barrierefreiheit gesetzlich relevant (BITV/EN 301 549) |
-| 3 | **`<label>` für Suchfeld ergänzen** | 5 min | Screenreader-Kompatibilität |
+| # | Aufgabe | Aufwand | Begründung | Status |
+|---|---------|---------|------------|--------|
+| 1 | **XSS in `renderBookmarks()` fixen** – `innerHTML` durch DOM-API ersetzen | 30 min | Persistente XSS-Gefahr, auch wenn aktuell nur eigene Daten | ✅ Gelöst |
+| 2 | **ARIA-Attribute für Modal ergänzen** – `role="dialog"`, `aria-modal`, Fokus-Management | 45 min | Barrierefreiheit gesetzlich relevant (BITV/EN 301 549) | ✅ Gelöst |
+| 3 | **`<label>` für Suchfeld ergänzen** | 5 min | Screenreader-Kompatibilität | ✅ Gelöst |
 
 ### 🟡 Kurzfristig (Sprint 2) – Qualität & Wartbarkeit
 
@@ -384,9 +393,9 @@ Das Leaflet-CSS wird über externes `<link>` geladen, was einen zusätzlichen Ro
 
 ### 🟢 Langfristig (Sprint 3) – Optimierung
 
-| # | Aufgabe | Aufwand | Begründung |
-|---|---------|---------|------------|
-| 8 | **Event-Delegation für Bookmarks** – Memory-Leak verhindern | 30 min | Speichereffizienz bei häufigem Rendern |
+| # | Aufgabe | Aufwand | Begründung | Status |
+|---|---------|---------|------------|--------|
+| 8 | **Event-Delegation für Bookmarks** – Memory-Leak verhindern | 30 min | Speichereffizienz bei häufigem Rendern | ✅ Gelöst |
 | 9 | **`DocumentFragment` statt `innerHTML` für Forecast-Tabelle** | 45 min | Performance bei großen Datenmengen |
 | 10 | **CSS-Klassen statt Inline-Styles für Farbcodierung** | 1h | Separation of Concerns, Caching-Vorteil |
 | 11 | **Eigene Modal-Dialoge statt `window.confirm`/`window.prompt`** | 1h | Bessere UX auf Mobile, kein Event-Loop-Block |
@@ -408,4 +417,4 @@ Das Leaflet-CSS wird über externes `<link>` geladen, was einen zusätzlichen Ro
 └─────────────────────┴────────┴──────────┴────────────┘
 ```
 
-**Insgesamt:** Die App ist funktional reif und nutzt moderne Web-Technologien effektiv. Die beiden Haupt-Prioritäten sind die XSS-Sicherheitslücke (Code-Sanitization) und die Barrierefreiheit. Der JavaScript-Code ist für ein Vanilla-JS-Projekt sauber strukturiert – ein IIFE-Wrapper würde ihn production-ready machen.
+**Insgesamt:** Die App ist funktional reif und nutzt moderne Web-Technologien effektiv. Die Sprint-1-Prioritäten (XSS, Accessibility, Event-Delegation) sind vollständig abgeschlossen. Verbleibende Items (CSS Custom Properties, SEO-Meta-Tags, Dead Code Bereinigung) sind niedrig priorisiert. Der JavaScript-Code ist für ein Vanilla-JS-Projekt sauber strukturiert – ein IIFE-Wrapper würde ihn production-ready machen.

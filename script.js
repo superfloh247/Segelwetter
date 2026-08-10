@@ -682,6 +682,11 @@ function handleMapCoordinateSelection(latlng) {
 function openModal(modal) {
     if (modal) {
         modal.classList.remove('hidden');
+        // Set focus to the first focusable element when modal opens
+        const firstFocusable = modal.querySelector('input, button, textarea, [tabindex]:not([tabindex="-1"])');
+        if (firstFocusable) {
+            setTimeout(() => firstFocusable.focus(), 50);
+        }
     }
 }
 
@@ -690,6 +695,42 @@ function closeModal(modal) {
         modal.classList.add('hidden');
     }
 }
+
+function trapModalFocus(event) {
+    const activeModal = document.querySelector('.modal:not(.hidden)');
+    if (!activeModal) return;
+
+    const focusableElements = activeModal.querySelectorAll(
+        'button, input, textarea, select, [tabindex]:not([tabindex="-1"])'
+    );
+    const focusableArray = Array.from(focusableElements);
+    if (focusableArray.length === 0) return;
+
+    const firstElement = focusableArray[0];
+    const lastElement = focusableArray[focusableArray.length - 1];
+
+    if (event.key === 'Tab') {
+        if (event.shiftKey) {
+            if (document.activeElement === firstElement) {
+                event.preventDefault();
+                lastElement.focus();
+            }
+        } else {
+            if (document.activeElement === lastElement) {
+                event.preventDefault();
+                firstElement.focus();
+            }
+        }
+    }
+
+    // Close modal on Escape key
+    if (event.key === 'Escape') {
+        closeModal(activeModal);
+    }
+}
+
+// Register global keyboard listener for focus trap
+document.addEventListener('keydown', trapModalFocus);
 
 async function handleSearch(event) {
     event.preventDefault();
