@@ -31,7 +31,7 @@ Stack: HTML/CSS/vanilla JS, keine Build-Pipeline, direkt lauffähig.
 13. ~~**`if (typeof module !== 'undefined')` am Ende**~~ — **GEFIXT:** Toter Node.js-Export-Code entfernt. ✅
 14. **Kein `.gitignore`** – kein Build-Artifact, aber auch keine zu ignorierende Datei existiert. Optional.
 15. **ETag/Cache-Control für statische Dateien nicht konfiguriert** – betrifft nur Self-Hosting; GitHub Pages nutzt bereits Cache.
-16. **Unused CSS-Klassen im Stylesheet** – Klassen wie `.weather-dashboard`, `.card`, `.card-header`, `.card-title`, `.weather-icon`, `.detail-item`, `.detail-label`, `.detail-value`, `.humidity`, `.pressure` werden nicht mehr im HTML verwendet (Relikte aus älterer Version).
+16. ~~**Unused CSS-Klassen im Stylesheet**~~ — **GEFIXT:** Alte Relikt-Klassen (`.weather-dashboard`, `.card`, `.card-header`, `.card-title`, `.weather-icon`, `.detail-item`, `.detail-label`, `.detail-value`, `.humidity`, `.pressure`), zugehörige `@keyframes fadeIn`, Orphan-Media-Query und ungenutzte `.subtitle`/`.loading`/`.error-message` aus style.css entfernt. ✅
 17. **Kein `meta description` für SEO** – `<head>` fehlt ein `<meta name="description" content="...">`-Tag.
 
 ---
@@ -58,5 +58,5 @@ Stack: HTML/CSS/vanilla JS, keine Build-Pipeline, direkt lauffähig.
 6. ~~[P2] Event Delegation für Bookmarks~~ — ✅ GEFIXT
 7. [P2] Nominatim Geocoding für Ortsname-Suche
 8. ~~[P3] `module.exports` entfernen~~ — ✅ GEFIXT
-9. [P3] Unused CSS-Klassen bereinigen (`.weather-dashboard`, `.card`, etc.)
+9. ~~[P3] Unused CSS-Klassen bereinigen~~ — ✅ GEFIXT
 10. [P3] `meta description` und `sizes` für apple-touch-icon hinzufügen
