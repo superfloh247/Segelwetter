@@ -1,5 +1,34 @@
 /* Segelwetter - Wettervorhersage für Segler */
 
+:root {
+    --color-primary: #1e3c72;
+    --color-primary-dark: #2a5298;
+    --color-primary-light: #4a90d9;
+    --color-accent-blue: #5bb8f7;
+    --color-text: #333;
+    --color-text-secondary: #555;
+    --color-text-dark: #0f1f45;
+    --color-text-heading: #18305f;
+    --color-text-body: #22315a;
+    --bg-card: rgba(255, 255, 255, 0.95);
+    --bg-card-solid: #fff;
+    --bg-header: rgba(30, 60, 114, 0.95);
+    --bg-even-row: rgba(245, 245, 245, 0.85);
+    --bg-selected-column: rgba(255, 229, 153, 0.95);
+    --border-card: rgba(30, 60, 114, 0.92);
+    --border-subtle: rgba(30, 60, 114, 0.16);
+    --border-input: rgba(30, 60, 114, 0.2);
+    --border-table: rgba(0, 0, 0, 0.08);
+    --bg-overlay-dark: rgba(15, 23, 42, 0.72);
+    --color-danger: #bf1f1f;
+    --bg-danger-subtle: rgba(255, 115, 115, 0.18);
+    --shadow-card: 0 24px 40px rgba(0, 0, 0, 0.16);
+    --shadow-marker: 0 8px 20px rgba(0, 0, 0, 0.25);
+    --radius-lg: 18px;
+    --radius-md: 14px;
+    --radius-sm: 12px;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -8,16 +37,16 @@
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
     min-height: 100vh;
-    color: #333;
+    color: var(--color-text);
 }
 
 #map {
     width: 100%;
     height: 400px;
     min-height: 320px;
-    border-radius: 18px;
+    border-radius: var(--radius-lg);
     margin-bottom: 1rem;
 }
 
@@ -31,11 +60,11 @@ body {
     min-width: 68px;
     min-height: 68px;
     padding: 10px 8px;
-    border-radius: 18px;
-    background: rgba(255, 255, 255, 0.95);
-    border: 2px solid rgba(30, 60, 114, 0.92);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
-    color: #1e3c72;
+    border-radius: var(--radius-lg);
+    background: var(--bg-card);
+    border: 2px solid var(--border-card);
+    box-shadow: var(--shadow-marker);
+    color: var(--color-primary);
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     text-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
 }
@@ -43,7 +72,7 @@ body {
 .wind-arrow-marker .arrow {
     font-size: 30px;
     line-height: 1;
-    color: #0f1f45;
+    color: var(--color-text-dark);
     text-shadow: 0 2px 4px rgba(255, 255, 255, 0.75);
 }
 
@@ -51,7 +80,7 @@ body {
     margin-top: 4px;
     font-size: 13px;
     font-weight: 700;
-    color: #0f1f45;
+    color: var(--color-text-dark);
     text-align: center;
     letter-spacing: 0.02em;
 }
@@ -66,10 +95,10 @@ body {
 }
 
 .weather-panel {
-    background: rgba(255, 255, 255, 0.95);
-    border-radius: 18px;
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
     padding: 1rem 1rem 0.8rem;
-    box-shadow: 0 24px 40px rgba(0, 0, 0, 0.16);
+    box-shadow: var(--shadow-card);
     backdrop-filter: blur(12px);
     margin-bottom: 1rem;
 }
@@ -92,12 +121,6 @@ body {
     gap: 0.5rem;
 }
 
-.coords-info {
-    font-size: 0.9rem;
-    color: #555;
-    padding-top: 0.5rem;
-    border-top: 1px solid rgba(0,0,0,0.08);
-}
 
 .hourly-forecast-wrapper {
     margin-top: 1rem;
@@ -119,17 +142,17 @@ body {
     justify-content: space-between;
     gap: 0.75rem;
     padding: 0.75rem 1rem;
-    border-radius: 14px;
-    border: 1px solid rgba(30, 60, 114, 0.16);
-    background: rgba(255, 255, 255, 0.95);
-    color: #1e3c72;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-card);
+    color: var(--color-primary);
     font-weight: 600;
     text-align: left;
     cursor: pointer;
 }
 
 .bookmark-item:hover {
-    background: rgba(30, 60, 114, 0.08);
+    background: var(--bg-header-muted, rgba(30, 60, 114, 0.08));
 }
 
 .bookmark-item-disabled {
@@ -148,7 +171,7 @@ body {
     width: 16px;
     height: 16px;
     animation: spin 1s linear infinite;
-    stroke: #1e3c72;
+    stroke: var(--color-primary);
     stroke-linecap: round;
     stroke-dasharray: 60 40;
 }
@@ -172,8 +195,8 @@ body {
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    background: rgba(255, 115, 115, 0.18);
-    color: #bf1f1f;
+    background: var(--bg-danger-subtle);
+    color: var(--color-danger);
     font-size: 1rem;
     font-weight: 700;
     line-height: 1;
@@ -182,11 +205,11 @@ body {
 .sailing-advice-box {
     margin-top: 0.75rem;
     padding: 1rem;
-    border-radius: 18px;
-    background: rgba(255, 255, 255, 0.96);
-    border: 1px solid rgba(30, 60, 114, 0.16);
+    border-radius: var(--radius-lg);
+    background: var(--bg-card-solid);
+    border: 1px solid var(--border-subtle);
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
-    color: #1e3c72;
+    color: var(--color-primary);
     font-size: 0.95rem;
     line-height: 1.5;
 }
@@ -198,8 +221,8 @@ body {
 }
 
 .sailing-advice-card {
-    background: rgba(255, 255, 255, 0.98);
-    border-radius: 16px;
+    background: var(--bg-card-solid);
+    border-radius: var(--radius-md);
     padding: 1rem;
     border: 1px solid rgba(30, 60, 114, 0.1);
 }
@@ -208,12 +231,12 @@ body {
     display: block;
     margin-bottom: 0.5rem;
     font-size: 1rem;
-    color: #18305f;
+    color: var(--color-text-heading);
 }
 
 .sailing-advice-card p {
     margin: 0;
-    color: #22315a;
+    color: var(--color-text-body);
     font-size: 0.95rem;
     line-height: 1.5;
 }
@@ -221,10 +244,6 @@ body {
     cursor: pointer;
 }
 
-.hourly-forecast-wrapper h3 {
-    margin-bottom: 0.75rem;
-    color: #fff;
-}
 
 .hourly-forecast-scroll {
     overflow-x: auto;
@@ -235,14 +254,14 @@ body {
     width: max-content;
     min-width: 100%;
     border-collapse: collapse;
-    background: rgba(255,255,255,0.95);
-    border-radius: 14px;
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
 }
 
 .hourly-forecast-table th,
 .hourly-forecast-table td {
     padding: 0.4rem 0.55rem;
-    border: 1px solid rgba(0,0,0,0.08);
+    border: 1px solid var(--border-table);
     text-align: center;
     white-space: nowrap;
     font-size: 0.75rem;
@@ -250,11 +269,11 @@ body {
 }
 
 .selected-column {
-    background: rgba(255, 229, 153, 0.95);
+    background: var(--bg-selected-column);
 }
 
 .hourly-forecast-table th {
-    background: rgba(30, 60, 114, 0.95);
+    background: var(--bg-header);
     color: #fff;
 }
 
@@ -282,21 +301,21 @@ body {
     position: sticky;
     left: 0;
     z-index: 5;
-    background: rgba(255,255,255,0.95);
+    background: var(--bg-card);
 }
 
 .hourly-forecast-table tbody th.label-cell {
     position: sticky;
     left: 0;
-    background: rgba(255,255,255,0.95);
+    background: var(--bg-card);
     z-index: 6;
-    color: #333;
+    color: var(--color-text);
     text-align: left;
-    box-shadow: 2px 0 0 rgba(0,0,0,0.08);
+    box-shadow: 2px 0 0 var(--border-table);
 }
 
 .hourly-forecast-table tr:nth-child(even) {
-    background: rgba(245,245,245,0.85);
+    background: var(--bg-even-row);
 }
 
 @media (max-width: 768px) {
@@ -330,7 +349,7 @@ body {
     align-items: center;
     justify-content: center;
     gap: 1rem;
-    background: rgba(15, 23, 42, 0.72);
+    background: var(--bg-overlay-dark);
     color: #fff;
     z-index: 9999;
     padding: 1rem;
@@ -348,7 +367,7 @@ body {
 
 .cape-danger {
     display: inline-block;
-    color: #bf1f1f;
+    color: var(--color-danger);
     font-weight: 900;
 }
 
@@ -363,14 +382,14 @@ body {
     width: 100%;
     text-align: center;
     padding: 0.6rem 0.8rem;
-    background-color: rgba(255, 255, 255, 0.95);
+    background-color: var(--bg-card);
     border-radius: 0;
     margin: 0 0 1rem 0;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
 }
 
 h1 {
-    color: #1e3c72;
+    color: var(--color-primary);
     font-size: 1.6rem;
     margin: 0;
     white-space: nowrap;
@@ -381,7 +400,7 @@ footer {
     text-align: center;
     padding: 1.5rem;
     margin-top: 2rem;
-    color: #666;
+    color: var(--color-text-secondary);
     font-size: 0.9rem;
 }
 
@@ -406,7 +425,7 @@ footer {
     left: 0;
     height: 3px;
     width: 0;
-    background: linear-gradient(90deg, #4a90d9, #5bb8f7);
+    background: linear-gradient(90deg, var(--color-primary-light), var(--color-accent-blue));
     z-index: 9999;
     transition: none;
     border-radius: 0 2px 2px 0;
@@ -437,7 +456,7 @@ footer {
 .ios-install-backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(15, 23, 42, 0.6);
+    background: var(--bg-overlay-dark);
     backdrop-filter: blur(4px);
 }
 
@@ -453,7 +472,7 @@ footer {
 }
 
 .ios-install-content h2 {
-    color: #1e3c72;
+    color: var(--color-primary);
     font-size: 1.25rem;
     margin-bottom: 1rem;
 }
@@ -469,7 +488,7 @@ footer {
 .ios-install-steps li {
     counter-increment: step-counter;
     padding: 0.4rem 0;
-    color: #333;
+    color: var(--color-text);
     font-size: 0.95rem;
     line-height: 1.4;
 }
@@ -477,7 +496,7 @@ footer {
 .ios-install-steps li::before {
     content: counter(step-counter) ".";
     font-weight: 700;
-    color: #1e3c72;
+    color: var(--color-primary);
     margin-right: 0.25rem;
 }
 
@@ -486,10 +505,10 @@ footer {
 }
 
 .ios-install-dismiss {
-    background: rgba(30, 60, 114, 0.95);
+    background: var(--bg-header);
     color: #fff;
     border: none;
-    border-radius: 12px;
+    border-radius: var(--radius-sm);
     padding: 0.7rem 1.8rem;
     font-size: 1rem;
     font-weight: 600;
@@ -497,7 +516,7 @@ footer {
 }
 
 .ios-install-dismiss:hover {
-    background: #1e3c72;
+    background: var(--color-primary);
 }
 
 /* Layout */
@@ -526,14 +545,14 @@ footer {
 .temperature {
     font-size: 2rem;
     font-weight: 700;
-    color: #1e3c72;
+    color: var(--color-primary);
     line-height: 1;
 }
 
 .unit {
     font-size: 0.9rem;
     font-weight: 400;
-    color: #555;
+    color: var(--color-text-secondary);
     margin-left: 0.2rem;
 }
 
@@ -549,17 +568,16 @@ footer {
     display: block;
     font-size: 1.1rem;
     font-weight: 700;
-    color: #1e3c72;
+    color: var(--color-primary);
 }
 
 .wind-direction .unit,
 .wind-speed .unit,
 .wind-gusts .unit {
     font-size: 0.75rem;
-    color: #555;
+    color: var(--color-text-secondary);
 }
 
-/* Favorite button */
 .favorite-btn {
     background: none;
     border: none;
@@ -596,7 +614,7 @@ footer {
 }
 
 .modal-content h2 {
-    color: #1e3c72;
+    color: var(--color-primary);
     font-size: 1.25rem;
     margin-bottom: 1rem;
     text-align: center;
@@ -613,7 +631,7 @@ footer {
 }
 
 .modal-content input:focus {
-    border-color: #1e3c72;
+    border-color: var(--color-primary);
     box-shadow: 0 0 0 3px rgba(30, 60, 114, 0.1);
 }
 
@@ -628,7 +646,7 @@ footer {
 }
 
 .close:hover {
-    color: #1e3c72;
+    color: var(--color-primary);
 }
 
 /* iOS Button */
@@ -636,16 +654,16 @@ footer {
     width: 100%;
     padding: 0.75rem 1.5rem;
     border: none;
-    border-radius: 12px;
+    border-radius: var(--radius-sm);
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
     background: rgba(30, 60, 114, 0.08);
-    color: #1e3c72;
+    color: var(--color-primary);
 }
 
 .ios-button.primary {
-    background: rgba(30, 60, 114, 0.95);
+    background: var(--bg-header);
     color: #fff;
 }
 
