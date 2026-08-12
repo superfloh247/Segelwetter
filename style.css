@@ -1,32 +1,64 @@
 /* Segelwetter - Wettervorhersage für Segler */
 
 :root {
+    /* Primary palette */
     --color-primary: #1e3c72;
     --color-primary-dark: #2a5298;
     --color-primary-light: #4a90d9;
     --color-accent-blue: #5bb8f7;
+
+    /* Text colors */
     --color-text: #333;
     --color-text-secondary: #555;
     --color-text-dark: #0f1f45;
     --color-text-heading: #18305f;
     --color-text-body: #22315a;
+    --color-white: #fff;
+
+    /* Backgrounds */
     --bg-card: rgba(255, 255, 255, 0.95);
-    --bg-card-solid: #fff;
+    --bg-card-solid: var(--color-white);
     --bg-header: rgba(30, 60, 114, 0.95);
+    --bg-header-muted: rgba(30, 60, 114, 0.08);
     --bg-even-row: rgba(245, 245, 245, 0.85);
     --bg-selected-column: rgba(255, 229, 153, 0.95);
+    --bg-overlay-dark: rgba(15, 23, 42, 0.72);
+
+    /* Borders */
     --border-card: rgba(30, 60, 114, 0.92);
     --border-subtle: rgba(30, 60, 114, 0.16);
     --border-input: rgba(30, 60, 114, 0.2);
     --border-table: rgba(0, 0, 0, 0.08);
-    --bg-overlay-dark: rgba(15, 23, 42, 0.72);
+
+    /* Danger */
     --color-danger: #bf1f1f;
     --bg-danger-subtle: rgba(255, 115, 115, 0.18);
+
+    /* Shadows */
     --shadow-card: 0 24px 40px rgba(0, 0, 0, 0.16);
     --shadow-marker: 0 8px 20px rgba(0, 0, 0, 0.25);
+    --shadow-header: 0 2px 4px rgba(0, 0, 0, 0.06);
+    --shadow-card-subtle: 0 8px 20px rgba(0, 0, 0, 0.08);
+    --shadow-modal: 0 24px 60px rgba(0, 0, 0, 0.3);
+    --shadow-install: 0 24px 60px rgba(0, 0, 0, 0.25);
+
+    /* Radius */
     --radius-lg: 18px;
     --radius-md: 14px;
     --radius-sm: 12px;
+
+    /* Text shadow (white glow for markers) */
+    --text-shadow-light-sm: 0 1px 2px rgba(255, 255, 255, 0.6);
+    --text-shadow-light-md: 0 2px 4px rgba(255, 255, 255, 0.75);
+
+    /* Spinner */
+    --spinner-track: rgba(255, 255, 255, 0.24);
+
+    /* Footer / subtle backgrounds */
+    --bg-footer-muted: rgba(255, 255, 255, 0.06);
+
+    /* Focus ring */
+    --shadow-focus-ring: 0 0 0 3px rgba(30, 60, 114, 0.1);
 }
 
 * {
@@ -50,7 +82,6 @@ body {
     margin-bottom: 1rem;
 }
 
-
 .wind-arrow-marker {
     display: flex;
     flex-direction: column;
@@ -66,14 +97,14 @@ body {
     box-shadow: var(--shadow-marker);
     color: var(--color-primary);
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
+    text-shadow: var(--text-shadow-light-sm);
 }
 
 .wind-arrow-marker .arrow {
     font-size: 30px;
     line-height: 1;
     color: var(--color-text-dark);
-    text-shadow: 0 2px 4px rgba(255, 255, 255, 0.75);
+    text-shadow: var(--text-shadow-light-md);
 }
 
 .wind-arrow-marker span {
@@ -121,7 +152,6 @@ body {
     gap: 0.5rem;
 }
 
-
 .hourly-forecast-wrapper {
     margin-top: 1rem;
     overflow: hidden;
@@ -152,7 +182,7 @@ body {
 }
 
 .bookmark-item:hover {
-    background: var(--bg-header-muted, rgba(30, 60, 114, 0.08));
+    background: var(--bg-header-muted);
 }
 
 .bookmark-item-disabled {
@@ -208,7 +238,7 @@ body {
     border-radius: var(--radius-lg);
     background: var(--bg-card-solid);
     border: 1px solid var(--border-subtle);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+    box-shadow: var(--shadow-card-subtle);
     color: var(--color-primary);
     font-size: 0.95rem;
     line-height: 1.5;
@@ -224,7 +254,7 @@ body {
     background: var(--bg-card-solid);
     border-radius: var(--radius-md);
     padding: 1rem;
-    border: 1px solid rgba(30, 60, 114, 0.1);
+    border: 1px solid var(--border-subtle);
 }
 
 .sailing-advice-card strong {
@@ -240,10 +270,10 @@ body {
     font-size: 0.95rem;
     line-height: 1.5;
 }
+
 #locationName {
     cursor: pointer;
 }
-
 
 .hourly-forecast-scroll {
     overflow-x: auto;
@@ -272,13 +302,7 @@ body {
     background: var(--bg-selected-column);
 }
 
-.hourly-forecast-table th {
-    background: var(--bg-header);
-    color: #fff;
-}
-
-.hourly-forecast-table thead tr.date-row th,
-.hourly-forecast-table thead tr.time-row th {
+.hourly-forecast-table thead th.sticky-header {
     position: sticky;
     text-align: center;
     padding: 0.2rem 0.4rem;
@@ -350,7 +374,7 @@ body {
     justify-content: center;
     gap: 1rem;
     background: var(--bg-overlay-dark);
-    color: #fff;
+    color: var(--color-white);
     z-index: 9999;
     padding: 1rem;
     text-align: center;
@@ -360,10 +384,10 @@ body {
     width: 3rem;
     height: 3rem;
     border-radius: 50%;
-    border: 4px solid rgba(255, 255, 255, 0.24);
-    border-top-color: #ffffff;
+    border: 4px solid var(--spinner-track);
+    border-top-color: var(--color-white);
     animation: spin 1s linear infinite;
-	}
+}
 
 .cape-danger {
     display: inline-block;
@@ -385,7 +409,7 @@ body {
     background-color: var(--bg-card);
     border-radius: 0;
     margin: 0 0 1rem 0;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+    box-shadow: var(--shadow-header);
 }
 
 h1 {
@@ -408,13 +432,14 @@ footer {
     margin-top: 1.25rem;
     padding: 0.75rem 1rem;
     border-radius: 12px;
-    background: rgba(255, 255, 255, 0.06);
-    color: #fff;
+    background: var(--bg-footer-muted);
+    color: var(--color-white);
     font-size: 0.82rem;
     text-align: center;
 }
+
 .app-footer a {
-    color: #fff;
+    color: var(--color-white);
     text-decoration: underline;
 }
 
@@ -462,13 +487,13 @@ footer {
 
 .ios-install-content {
     position: relative;
-    background: #fff;
-    border-radius: 18px;
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
     padding: 2rem 1.5rem;
     max-width: 320px;
     width: 85%;
     text-align: center;
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
+    box-shadow: var(--shadow-install);
 }
 
 .ios-install-content h2 {
@@ -506,7 +531,7 @@ footer {
 
 .ios-install-dismiss {
     background: var(--bg-header);
-    color: #fff;
+    color: var(--color-white);
     border: none;
     border-radius: var(--radius-sm);
     padding: 0.7rem 1.8rem;
@@ -599,17 +624,17 @@ footer {
     align-items: center;
     justify-content: center;
     z-index: 9998;
-    background: rgba(15, 23, 42, 0.6);
+    background: var(--bg-overlay-dark);
     backdrop-filter: blur(4px);
 }
 
 .modal-content {
-    background: #fff;
-    border-radius: 18px;
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
     padding: 2rem 1.5rem;
     max-width: 360px;
     width: 90%;
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--shadow-modal);
     position: relative;
 }
 
@@ -623,8 +648,8 @@ footer {
 .modal-content input {
     width: 100%;
     padding: 0.75rem 1rem;
-    border: 1px solid rgba(30, 60, 114, 0.2);
-    border-radius: 12px;
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-sm);
     font-size: 1rem;
     margin-bottom: 1rem;
     outline: none;
@@ -632,7 +657,7 @@ footer {
 
 .modal-content input:focus {
     border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px rgba(30, 60, 114, 0.1);
+    box-shadow: var(--shadow-focus-ring);
 }
 
 .close {
@@ -641,7 +666,7 @@ footer {
     right: 1rem;
     font-size: 1.5rem;
     cursor: pointer;
-    color: #555;
+    color: var(--color-text-secondary);
     line-height: 1;
 }
 
@@ -658,13 +683,13 @@ footer {
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
-    background: rgba(30, 60, 114, 0.08);
+    background: var(--bg-header-muted);
     color: var(--color-primary);
 }
 
 .ios-button.primary {
     background: var(--bg-header);
-    color: #fff;
+    color: var(--color-white);
 }
 
 .ios-button:hover {
