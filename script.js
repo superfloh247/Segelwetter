@@ -909,6 +909,10 @@ function setupPullToRefresh() {
 
     document.addEventListener('touchstart', event => {
         if (window.scrollY !== 0 || refreshing) return;
+        // Ignore touches originating from the map area to avoid conflict with map pan/zoom gestures
+        const target = event.target;
+        const mapElement = document.getElementById('map');
+        if (mapElement && mapElement.contains(target)) return;
         dragging = true;
         startY = event.touches[0].pageY;
     }, { passive: true });
