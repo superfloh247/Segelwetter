@@ -18,7 +18,7 @@ const isStandalone = window.matchMedia("(display-mode: standalone)").matches
                   || window.navigator.standalone === true;
 
 const weatherData = {
-    location: 'Standort unbekannt',
+    location: null, // Set in loadWeatherForCoords(); shown as '-' until then
     coords: {
         lat: 52.44318115023351,
         lng: 13.675055360861572
@@ -39,7 +39,7 @@ function saveLastLocation(coords, location) {
     try {
         localStorage.setItem(STORAGE_KEY_LAST_LOCATION, JSON.stringify({ lat: coords.lat, lng: coords.lng, location }));
     } catch (error) {
-        console.warn('Kann letzte Position nicht speichern.', error);
+        console.warn(t('consoleCannotSaveLocation'), error);
     }
 }
 
@@ -48,7 +48,7 @@ function loadFavorites() {
         const raw = localStorage.getItem(STORAGE_KEY_FAVORITES);
         return raw ? JSON.parse(raw) : [];
     } catch (error) {
-        console.warn('Kann Favoriten nicht laden.', error);
+        console.warn(t('consoleCannotLoadFavorites'), error);
         return [];
     }
 }
@@ -57,7 +57,7 @@ function saveFavorites(favorites) {
     try {
         localStorage.setItem(STORAGE_KEY_FAVORITES, JSON.stringify(favorites));
     } catch (error) {
-        console.warn('Kann Favoriten nicht speichern.', error);
+        console.warn(t('consoleCannotSaveFavorites'), error);
     }
 }
 
@@ -82,7 +82,7 @@ function setupBookmarkDelegation() {
 
         if (removeBtn) {
             event.stopPropagation();
-            const confirmed = window.confirm(`Favorit "${name}" wirklich löschen?`);
+            const confirmed = window.confirm(t('deleteFavoriteConfirm').replace('{name}', name));
             if (confirmed) {
                 deleteFavorite(name);
             }
@@ -171,7 +171,7 @@ function addOrUpdateFavorite() {
 
 function promptLocationName() {
     const currentLabel = weatherData.location || `Lat ${weatherData.coords.lat.toFixed(6)}, Lon ${weatherData.coords.lng.toFixed(6)}`;
-    const newName = window.prompt('Gib einen Namen für diese Koordinate ein:', currentLabel);
+    const newName = window.prompt(t('promptLocationName'), currentLabel);
     if (newName && newName.trim()) {
         weatherData.location = newName.trim();
         displayWeather(weatherData);
@@ -187,7 +187,7 @@ function loadLastLocation() {
             return parsed;
         }
     } catch (error) {
-        console.warn('Kann letzte Position nicht laden.', error);
+        console.warn(t('consoleCannotLoadLocation'), error);
     }
     return null;
 }
@@ -207,14 +207,14 @@ const elements = {
 
 function formatWindDirection(direction, directionDegrees) {
     const directionMap = {
-        N: 'Norden',
-        NE: 'Nord-Osten',
-        E: 'Osten',
-        SE: 'Süd-Osten',
-        S: 'Süden',
-        SW: 'Süd-West',
-        W: 'Westen',
-        NW: 'Nord-West'
+        N: t('directionN'),
+        NE: t('directionNE'),
+        E: t('directionE'),
+        SE: t('directionSE'),
+        S: t('directionS'),
+        SW: t('directionSW'),
+        W: t('directionW'),
+        NW: t('directionNW')
     };
     const label = directionMap[direction] || direction;
     if (typeof directionDegrees === 'number') {
@@ -317,8 +317,8 @@ function buildHourlyForecastFromOpenMeteo(data, marineData) {
     for (let i = 0; i < timeStrings.length && forecast.length < FORECAST_HOURS; i += 1) {
         const time = new Date(timeStrings[i]);
         if (time < start) continue;
-        const hour = time.toLocaleTimeString('de-DE', { hour: '2-digit', hour12: false });
-        const dateLabel = time.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+        const hour = time.toLocaleTimeString(t('dateLocale'), { hour: '2-digit', hour12: false });
+        const dateLabel = time.toLocaleDateString(t('dateLocale'), { weekday: 'short', day: '2-digit', month: '2-digit' });
         const directionDegrees = Number(windDirections[i] ?? 0);
         const capeVal = (capes && i < capes.length && capes[i] != null) ? Number(capes[i]) : null;
         const waveHeightVal = (waveHeights && i < waveHeights.length && waveHeights[i] != null) ? Number(waveHeights[i]) : null;
@@ -358,7 +358,7 @@ async function fetchWeatherForCoords(lat, lng) {
     const timer = setTimeout(() => controller.abort(), 8000);
     const response = await fetch(url.href, { signal: controller.signal }).finally(() => clearTimeout(timer));
     if (!response.ok) {
-        throw new Error(`Open-Meteo-Antwort fehlerhaft: ${response.status}`);
+        throw new Error(`Open-Meteo response error: ${response.status}`);
      }
     return response.json();
 }
@@ -379,7 +379,7 @@ async function fetchMarineWaveHeight(lat, lng) {
     const timer = setTimeout(() => controller.abort(), 8000);
     const response = await fetch(url.href, { signal: controller.signal }).finally(() => clearTimeout(timer));
     if (!response.ok) {
-        throw new Error(`Marine Open-Meteo-Antwort fehlerhaft: ${response.status}`);
+        throw new Error(`Marine Open-Meteo response error: ${response.status}`);
      }
     return response.json();
 }
@@ -390,7 +390,7 @@ async function loadWeatherForCoords(lat, lng, saveLocation = false) {
         const [data, marineData] = await Promise.all([
             fetchWeatherForCoords(lat, lng),
             fetchMarineWaveHeight(lat, lng).catch(error => {
-                console.warn('Marine-Wellenhöhe konnte nicht geladen werden:', error);
+                console.warn(t('consoleMarineWaveFailed'), error);
                 return null;
             })
         ]);
@@ -417,7 +417,7 @@ async function loadWeatherForCoords(lat, lng, saveLocation = false) {
             saveLastLocation({ lat, lng }, weatherData.location);
         }
     } catch (error) {
-        console.warn('Open-Meteo-Daten konnten nicht geladen werden:', error);
+        console.warn(t('consoleWeatherFailed'), error);
         weatherData.coords = { lat, lng };
         weatherData.location = `Lat ${lat.toFixed(6)}, Lon ${lng.toFixed(6)}`;
         weatherData.temperature = null;
@@ -474,21 +474,25 @@ function findNextGoodSailingSlot(criteria) {
     });
 
     if (!nextSlot) {
-        return 'Kein guter Termin gefunden 😢';
+        return t('noSlotFound');
     }
 
     const date = new Date(nextSlot.timestamp);
-    const formattedDate = date.toLocaleDateString('de-DE', {
+    const formattedDate = date.toLocaleDateString(t('dateLocale'), {
         weekday: 'short',
         day: '2-digit',
         month: '2-digit'
     });
-    const formattedTime = date.toLocaleTimeString('de-DE', {
+    const formattedTime = date.toLocaleTimeString(t('dateLocale'), {
         hour: '2-digit',
         minute: '2-digit',
         hour12: false
     });
-    return `${formattedDate}, ${formattedTime} Uhr — Grundwind ${kmhToKnots(nextSlot.speed).toFixed(1)} kt, Böen ${kmhToKnots(nextSlot.gusts).toFixed(1)} kt`;
+    return t('slotFormat')
+        .replace('{date}', formattedDate)
+        .replace('{time}', formattedTime)
+        .replace('{wind}', kmhToKnots(nextSlot.speed).toFixed(1))
+        .replace('{gusts}', kmhToKnots(nextSlot.gusts).toFixed(1));
 }
 
 function updateSailingAdvice() {
@@ -519,7 +523,7 @@ function displayHourlyForecast() {
     if (!table) return;
 
     if (weatherData.hourlyForecast.length === 0) {
-        table.innerHTML = '<tr><td colspan="100" style="text-align:center;padding:2rem;color:#666;">Keine Vorhersagedaten verfügbar</td></tr>';
+        table.innerHTML = `<tr><td colspan="100" style="text-align:center;padding:2rem;color:#666;">${t('noForecastData')}</td></tr>`;
         return;
      }
 
@@ -535,19 +539,19 @@ function displayHourlyForecast() {
 
     const rows = [
         {
-            label: 'Grundwind',
+            label: t('forecastBaseWind'),
             values: weatherData.hourlyForecast.map(item => `${kmhToKnots(item.speed)}`)
         },
         {
-            label: 'Böen',
+            label: t('forecastGusts'),
             values: weatherData.hourlyForecast.map(item => `${kmhToKnots(item.gusts)}`)
         },
         {
-            label: 'Temperatur',
-            values: weatherData.hourlyForecast.map(item => `${item.temp}°C`)
+            label: t('forecastTemperature'),
+            values: weatherData.hourlyForecast.map(item => `${item.temp}${t('celsius')}`)
         },
         {
-            label: 'Windrichtung',
+            label: t('forecastWindDirection'),
             values: weatherData.hourlyForecast.map(item => item.direction)
         }
     ];
@@ -558,14 +562,14 @@ function displayHourlyForecast() {
 
     if (hasSeaTemp) {
         rows.push({
-            label: 'Wassertemp.',
+            label: t('forecastWaterTemp'),
             values: weatherData.hourlyForecast.map(item => item.seaSurfaceTemp != null && !isNaN(item.seaSurfaceTemp) ? `${(Math.round(item.seaSurfaceTemp * 10) / 10)}°C` : '—')
         });
     }
 
     if (hasCape) {
         rows.push({
-            label: 'Gewitter',
+            label: t('forecastStorm'),
             values: weatherData.hourlyForecast.map(item => {
                 if (typeof item.cape !== 'number' || isNaN(item.cape) || item.cape <= 500) {
                     return '';
@@ -580,7 +584,7 @@ function displayHourlyForecast() {
 
     if (hasWaveHeight) {
         rows.push({
-            label: 'Wellenhöhe',
+            label: t('forecastWaveHeight'),
             values: weatherData.hourlyForecast.map(item => item.waveHeight != null && !isNaN(item.waveHeight) ? `${(Math.round(item.waveHeight * 10) / 10)} m` : '—')
         });
     }
@@ -738,7 +742,7 @@ async function handleSearch(event) {
     if (!query) return;
     const coords = parseCoordinates(query);
     if (!coords) {
-        alert('Bitte gültige Koordinaten im Format "lat, lon" eingeben.');
+        alert(t('searchInvalidCoords'));
         return;
     }
     await loadWeatherForCoords(coords.lat, coords.lng, true);
@@ -837,7 +841,7 @@ function highlightForecastColumn(columnIndex) {
 
 function setupMap() {
     if (typeof L === 'undefined') {
-        console.error('Leaflet ist nicht geladen.');
+        console.error(t('consoleLeafletNotLoaded'));
         return;
     }
     const { lat, lng } = weatherData.coords;
@@ -982,6 +986,9 @@ function setupModalHandlers() {
 }
 
 async function initApp() {
+    // Apply translations to all static HTML elements based on detected language
+    applyTranslations();
+
     const saved = loadLastLocation();
     if (saved) {
         weatherData.coords = { lat: saved.lat, lng: saved.lng };
