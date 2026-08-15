@@ -32,6 +32,9 @@ Do not rewrite entire files when a targeted modification is sufficient.
 
 Do not create duplicate implementations.
 
+Do not create temp files outside of this project.
+Create temp files in the `tmp/` folder inside this project.
+
 Use the most direct available tool for the task.
 
 Because the project is being operated with a local 27B model, keep context efficient.
