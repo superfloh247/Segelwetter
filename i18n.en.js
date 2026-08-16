@@ -31,6 +31,10 @@ const enTranslations = {
     forecastWaveHeight: 'Wave height',
     noForecastData: 'No forecast data available',
 
+    // Error banner
+    errorWeatherLoadFailed: 'Weather data could not be loaded. Please try again later.',
+    errorBannerClose: 'Close',
+
     // Wind directions
     directionN: 'N',
     directionNE: 'NE',

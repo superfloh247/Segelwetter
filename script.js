@@ -202,7 +202,10 @@ const elements = {
     bookmarksList: document.getElementById('bookmarksList'),
     searchModal: document.getElementById('searchModal'),
     searchInput: document.getElementById('searchInput'),
-    searchSubmit: document.getElementById('searchSubmit')
+    searchSubmit: document.getElementById('searchSubmit'),
+    errorBanner: document.getElementById('errorBanner'),
+    errorBannerText: document.getElementById('errorBannerText'),
+    errorBannerClose: document.getElementById('errorBannerClose')
 };
 
 function formatWindDirection(direction, directionDegrees) {
@@ -438,6 +441,7 @@ async function fetchMarineWaveHeight(lat, lng) {
 
 async function loadWeatherForCoords(lat, lng, saveLocation = false) {
     showLoadingOverlay(true);
+    hideErrorBanner();
     try {
         const [data, marineData] = await Promise.all([
             fetchWeatherForCoords(lat, lng),
@@ -470,6 +474,7 @@ async function loadWeatherForCoords(lat, lng, saveLocation = false) {
         }
     } catch (error) {
         console.warn(t('consoleWeatherFailed'), error);
+        showErrorBanner(t('errorWeatherLoadFailed'));
         weatherData.coords = { lat, lng };
         weatherData.location = `Lat ${lat.toFixed(6)}, Lon ${lng.toFixed(6)}`;
         weatherData.temperature = null;
@@ -693,6 +698,17 @@ function showLoadingOverlay(show) {
     const overlay = document.getElementById('loadingOverlay');
     if (!overlay) return;
     overlay.classList.toggle('hidden', !show);
+}
+
+function showErrorBanner(message) {
+    if (!elements.errorBanner) return;
+    if (elements.errorBannerText) elements.errorBannerText.textContent = message;
+    elements.errorBanner.classList.remove('hidden');
+}
+
+function hideErrorBanner() {
+    if (!elements.errorBanner) return;
+    elements.errorBanner.classList.add('hidden');
 }
 
 function showIOSInstallPrompt() {
@@ -1034,6 +1050,9 @@ function setupModalHandlers() {
     }
     if (elements.searchSubmit) {
         elements.searchSubmit.addEventListener('click', handleSearch);
+    }
+    if (elements.errorBannerClose) {
+        elements.errorBannerClose.addEventListener('click', hideErrorBanner);
     }
 }
 

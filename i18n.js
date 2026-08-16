@@ -104,6 +104,9 @@ function applyTranslations() {
     const searchSubmitEl = document.getElementById('searchSubmit');
     if (searchSubmitEl) searchSubmitEl.textContent = t('searchButton');
 
+    const errorBannerCloseEl = document.getElementById('errorBannerClose');
+    if (errorBannerCloseEl) errorBannerCloseEl.setAttribute('aria-label', t('errorBannerClose'));
+
     // Update loading overlay
     const loadingText = document.querySelector('#loadingOverlay p');
     if (loadingText) loadingText.textContent = t('loadingWeather');

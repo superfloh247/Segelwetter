@@ -31,6 +31,10 @@ const deTranslations = {
     forecastWaveHeight: 'Wellenhöhe',
     noForecastData: 'Keine Vorhersagedaten verfügbar',
 
+    // Error banner
+    errorWeatherLoadFailed: 'Wetterdaten konnten nicht geladen werden. Bitte versuche es später erneut.',
+    errorBannerClose: 'Schließen',
+
     // Wind directions
     directionN: 'Norden',
     directionNE: 'Nord-Osten',
