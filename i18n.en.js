@@ -52,7 +52,14 @@ const enTranslations = {
     searchPlaceholder: 'Enter latitude, longitude or name',
     searchButton: 'Search',
     searchInvalidCoords: 'Please enter valid coordinates in "lat, lon" format.',
+    searchErrorTitle: 'Search failed',
     promptLocationName: 'Enter a name for this coordinate:',
+
+    // Dialogs (M13 – replaces window.confirm / window.prompt)
+    dialogOk: 'OK',
+    dialogCancel: 'Cancel',
+    dialogDelete: 'Delete',
+    dialogDeleteFavoriteTitle: 'Delete favorite',
 
     // Loading
     loadingWeather: 'Loading weather data…',
@@ -76,6 +83,7 @@ const enTranslations = {
     consoleCannotLoadLocation: 'Cannot load last location.',
     consoleMarineWaveFailed: 'Marine wave height could not be loaded:',
     consoleWeatherFailed: 'Open-Meteo data could not be loaded:',
+    consoleGeocodeFailed: 'Nominatim geocoding failed:',
     consoleLeafletNotLoaded: 'Leaflet is not loaded.',
 
     // Date/time locale

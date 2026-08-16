@@ -648,6 +648,56 @@ function parseCoordinates(input) {
     return { lat, lng };
 }
 
+// Nominatim (OpenStreetMap) Geocoding für Ortsnamen – nur bei user-initiierten Suchen (Rate-Limit: ~1 req/s)
+async function geocodeLocation(query) {
+    const url = new URL('https://nominatim.openstreetmap.org/search');
+    url.searchParams.set('q', query);
+    url.searchParams.set('format', 'json');
+    url.searchParams.set('limit', '1');
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    const response = await fetch(url.href, {
+        signal: controller.signal,
+        headers: { 'Accept-Language': t('dateLocale') }
+    }).finally(() => clearTimeout(timer));
+    if (!response.ok) {
+        throw new Error(`Nominatim response error: ${response.status}`);
+    }
+    const results = await response.json();
+    if (!Array.isArray(results) || results.length === 0) return null;
+    const lat = parseFloat(results[0].lat);
+    const lng = parseFloat(results[0].lon);
+    if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
+    return { lat, lng, name: results[0].display_name };
+}
+async function handleSearch(event) {
+    event.preventDefault();
+    const query = elements.searchInput?.value.trim();
+    if (!query) return;
+    const coords = parseCoordinates(query);
+    if (coords) {
+        await loadWeatherForCoords(coords.lat, coords.lng, true);
+        closeModal(elements.searchModal);
+        return;
+    }
+    // Fallback: Ortsname per Nominatim auflösen
+    try {
+        const result = await geocodeLocation(query);
+        if (!result) {
+            showErrorBanner(t('searchInvalidCoords'));
+            return;
+        }
+        await loadWeatherForCoords(result.lat, result.lng, true);
+        weatherData.location = result.name;
+        displayWeather(weatherData);
+        closeModal(elements.searchModal);
+    } catch (error) {
+        console.warn(t('consoleGeocodeFailed'), error);
+        showErrorBanner(`${t('searchErrorTitle')}: ${error.message}`);
+    }
+}
+
 function showLoadingOverlay(show) {
     const overlay = document.getElementById('loadingOverlay');
     if (!overlay) return;
@@ -757,19 +807,6 @@ function trapModalFocus(event) {
 
 // Register global keyboard listener for focus trap
 document.addEventListener('keydown', trapModalFocus);
-
-async function handleSearch(event) {
-    event.preventDefault();
-    const query = elements.searchInput?.value.trim();
-    if (!query) return;
-    const coords = parseCoordinates(query);
-    if (!coords) {
-        alert(t('searchInvalidCoords'));
-        return;
-    }
-    await loadWeatherForCoords(coords.lat, coords.lng, true);
-    closeModal(elements.searchModal);
-}
 
 function directionToDegrees(direction) {
     const mapping = {
