@@ -340,10 +340,60 @@ function buildHourlyForecastFromOpenMeteo(data, marineData) {
     return forecast;
 }
 
+// API response cache – protects against Open-Meteo rate limits and speeds up re-loads
+const STORAGE_KEY_API_CACHE = 'segelwetter:apiCache';
+const API_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+const API_CACHE_MAX_ENTRIES = 20;
+
+function readApiCache() {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY_API_CACHE);
+        return raw ? JSON.parse(raw) : {};
+    } catch (error) {
+        return {};
+    }
+}
+
+function writeApiCache(cache) {
+    try {
+        localStorage.setItem(STORAGE_KEY_API_CACHE, JSON.stringify(cache));
+    } catch (error) {
+        // localStorage not available – ignore
+    }
+}
+
+function getCachedResponse(key) {
+    const cache = readApiCache();
+    const entry = cache[key];
+    if (!entry) return null;
+    if (Date.now() - entry.ts > API_CACHE_TTL) {
+        delete cache[key];
+        writeApiCache(cache);
+        return null;
+    }
+    return entry.data;
+}
+
+function setCachedResponse(key, data) {
+    const cache = readApiCache();
+    cache[key] = { ts: Date.now(), data };
+    const keys = Object.keys(cache);
+    if (keys.length > API_CACHE_MAX_ENTRIES) {
+        keys.sort((a, b) => cache[a].ts - cache[b].ts);
+        while (keys.length > API_CACHE_MAX_ENTRIES) {
+            delete cache[keys.shift()];
+        }
+    }
+    writeApiCache(cache);
+}
+
 async function fetchWeatherForCoords(lat, lng) {
     const start = new Date();
     start.setMinutes(0, 0, 0);
     const end = new Date(start.getTime() + FORECAST_HOURS * 3600 * 1000);
+    const cacheKey = `weather:${lat.toFixed(4)}:${lng.toFixed(4)}:${start.toISOString().slice(0, 10)}:${end.toISOString().slice(0, 10)}`;
+    const cached = getCachedResponse(cacheKey);
+    if (cached) return cached;
     const url = new URL('https://api.open-meteo.com/v1/forecast');
     url.searchParams.set('latitude', String(lat));
     url.searchParams.set('longitude', String(lng));
@@ -360,7 +410,9 @@ async function fetchWeatherForCoords(lat, lng) {
     if (!response.ok) {
         throw new Error(`Open-Meteo response error: ${response.status}`);
      }
-    return response.json();
+    const data = await response.json();
+    setCachedResponse(cacheKey, data);
+    return data;
 }
 
 async function fetchMarineWaveHeight(lat, lng) {
