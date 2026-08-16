@@ -302,6 +302,27 @@ body {
     background: var(--bg-selected-column);
 }
 
+/* Wind speed color scale (kt) – forecast table cells */
+.forecast-cell-wind-0-6 { background: rgb(93, 153, 255); color: #111; }
+.forecast-cell-wind-6-10 { background: rgb(173, 216, 230); color: #111; }
+.forecast-cell-wind-10-12 { background: rgb(175, 221, 150); color: #111; }
+.forecast-cell-wind-12-15 { background: rgb(255, 229, 153); color: #222; }
+.forecast-cell-wind-15-30 { background: rgb(255, 170, 130); color: #222; }
+.forecast-cell-wind-30 { background: rgb(255, 115, 115); color: #222; }
+
+/* Gust color scale (kt) – forecast table cells */
+.forecast-cell-gust-0-14 { background: rgb(175, 221, 150); color: #111; }
+.forecast-cell-gust-14-18 { background: rgb(255, 229, 153); color: #222; }
+.forecast-cell-gust-18-30 { background: rgb(255, 170, 130); color: #222; }
+.forecast-cell-gust-30 { background: rgb(255, 115, 115); color: #222; }
+
+/* Empty forecast state */
+.forecast-empty {
+    text-align: center;
+    padding: 2rem;
+    color: var(--color-text-secondary);
+}
+
 .hourly-forecast-table thead th.sticky-header {
     position: sticky;
     text-align: center;

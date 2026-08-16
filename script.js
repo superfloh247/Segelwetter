@@ -242,64 +242,22 @@ function degreesToDirection(degrees) {
     return 'NW';
 }
 
-function interpolateColor(start, end, t) {
-    return [
-        Math.round(start[0] + (end[0] - start[0]) * t),
-        Math.round(start[1] + (end[1] - start[1]) * t),
-        Math.round(start[2] + (end[2] - start[2]) * t)
-    ];
+// Wind speed color scale (kt) – maps to CSS classes (see style.css)
+function windSpeedClass(speedKnots) {
+    if (speedKnots <= 6) return 'forecast-cell-wind-0-6';
+    if (speedKnots <= 10) return 'forecast-cell-wind-6-10';
+    if (speedKnots <= 12) return 'forecast-cell-wind-10-12';
+    if (speedKnots <= 15) return 'forecast-cell-wind-12-15';
+    if (speedKnots <= 30) return 'forecast-cell-wind-15-30';
+    return 'forecast-cell-wind-30';
 }
 
-function windSpeedBackground(speedKnots) {
-    const stops = [
-        { threshold: 0, color: [93, 153, 255] },
-        { threshold: 6, color: [173, 216, 230] },
-        { threshold: 10, color: [175, 221, 150] },
-        { threshold: 12, color: [255, 229, 153] },
-        { threshold: 15, color: [255, 170, 130] },
-        { threshold: 30, color: [255, 115, 115] }
-    ];
-    let prev = stops[0];
-
-    for (let i = 1; i < stops.length; i += 1) {
-        const current = stops[i];
-        if (speedKnots <= current.threshold) {
-            const range = current.threshold - prev.threshold;
-            const t = range === 0 ? 0 : Math.min(1, Math.max(0, (speedKnots - prev.threshold) / range));
-            const [r, g, b] = interpolateColor(prev.color, current.color, t);
-            return `rgb(${r}, ${g}, ${b})`;
-        }
-        prev = current;
-    }
-    const last = stops[stops.length - 1].color;
-    return `rgb(${last[0]}, ${last[1]}, ${last[2]})`;
-}
-
-function windSpeedTextColor(speedKnots) {
-    return speedKnots > 11 ? '#222' : '#111';
-}
-
-function gustSpeedBackground(speedKnots) {
-    const stops = [
-        { threshold: 0, color: [175, 221, 150] },
-        { threshold: 14, color: [175, 221, 150] },
-        { threshold: 18, color: [255, 229, 153] },
-        { threshold: 30, color: [255, 115, 115] }
-    ];
-    let prev = stops[0];
-
-    for (let i = 1; i < stops.length; i += 1) {
-        const current = stops[i];
-        if (speedKnots <= current.threshold) {
-            const range = current.threshold - prev.threshold;
-            const t = range === 0 ? 0 : Math.min(1, Math.max(0, (speedKnots - prev.threshold) / range));
-            const [r, g, b] = interpolateColor(prev.color, current.color, t);
-            return `rgb(${r}, ${g}, ${b})`;
-        }
-        prev = current;
-    }
-    const last = stops[stops.length - 1].color;
-    return `rgb(${last[0]}, ${last[1]}, ${last[2]})`;
+// Gust color scale (kt) – maps to CSS classes (see style.css)
+function gustSpeedClass(speedKnots) {
+    if (speedKnots <= 14) return 'forecast-cell-gust-0-14';
+    if (speedKnots <= 18) return 'forecast-cell-gust-14-18';
+    if (speedKnots <= 30) return 'forecast-cell-gust-18-30';
+    return 'forecast-cell-gust-30';
 }
 
 function buildHourlyForecastFromOpenMeteo(data, marineData) {
@@ -580,7 +538,7 @@ function displayHourlyForecast() {
     if (!table) return;
 
     if (weatherData.hourlyForecast.length === 0) {
-        table.innerHTML = `<tr><td colspan="100" style="text-align:center;padding:2rem;color:#666;">${t('noForecastData')}</td></tr>`;
+        table.innerHTML = `<tr><td colspan="100" class="forecast-empty">${t('noForecastData')}</td></tr>`;
         return;
      }
 
@@ -656,17 +614,13 @@ function displayHourlyForecast() {
     rows.forEach((row, rowIndex) => {
         html += '<tr>';
         html += `<th class="label-cell">${row.label}</th>`;
-        html += row.values.map((value, colIndex) => {
+        html += row.values.map(value => {
             const numericValue = Number(value);
             if (rowIndex === 0) {
-                const background = windSpeedBackground(numericValue);
-                const color = windSpeedTextColor(numericValue);
-                return `<td style="background:${background};color:${color}">${value}</td>`;
+                return `<td class="${windSpeedClass(numericValue)}">${value}</td>`;
             }
             if (rowIndex === 1) {
-                const background = gustSpeedBackground(numericValue);
-                const color = windSpeedTextColor(numericValue);
-                return `<td style="background:${background};color:${color}">${value}</td>`;
+                return `<td class="${gustSpeedClass(numericValue)}">${value}</td>`;
             }
             return `<td>${value}</td>`;
         }).join('');
