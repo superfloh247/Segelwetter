@@ -96,8 +96,7 @@ function setupBookmarkDelegation() {
         isLoadingBookmark = true;
         renderBookmarks(name);
         try {
-            await loadWeatherForCoords(favorite.lat, favorite.lng, false);
-            weatherData.location = favorite.name;
+            await loadWeatherForCoords(favorite.lat, favorite.lng, favorite.name);
             displayWeather(weatherData);
             updateSailingAdvice();
         } finally {
@@ -200,6 +199,7 @@ function confirmRenameLocation() {
     closeModal(elements.renameLocationModal);
     if (newName) {
         weatherData.location = newName;
+        saveLastLocation(weatherData.coords, newName);
         displayWeather(weatherData);
     }
 }
@@ -431,9 +431,13 @@ async function fetchMarineWaveHeight(lat, lng) {
     return response.json();
 }
 
-async function loadWeatherForCoords(lat, lng, saveLocation = false) {
+async function loadWeatherForCoords(lat, lng, locationName = null) {
     showLoadingOverlay(true);
     hideErrorBanner();
+    weatherData.coords = { lat, lng };
+    weatherData.location = locationName || `Lat ${lat.toFixed(6)}, Lon ${lng.toFixed(6)}`;
+    // Die zuletzt angezeigte Position immer speichern – auch wenn der Wetter-Request fehlschlägt
+    saveLastLocation(weatherData.coords, weatherData.location);
     try {
         const [data, marineData] = await Promise.all([
             fetchWeatherForCoords(lat, lng),
@@ -443,8 +447,6 @@ async function loadWeatherForCoords(lat, lng, saveLocation = false) {
             })
         ]);
         const current = data.current_weather || {};
-        weatherData.coords = { lat, lng };
-        weatherData.location = `Lat ${lat.toFixed(6)}, Lon ${lng.toFixed(6)}`;
         weatherData.temperature = Number(current.temperature ?? (data.hourly?.temperature_2m?.[0] ?? 0));
         const firstWave = marineData?.hourly?.wave_height?.[0];
         weatherData.waveHeight = firstWave != null ? Number(firstWave) : null;
@@ -461,14 +463,9 @@ async function loadWeatherForCoords(lat, lng, saveLocation = false) {
         if (mapInstance) {
             updateMap(lat, lng);
         }
-        if (saveLocation) {
-            saveLastLocation({ lat, lng }, weatherData.location);
-        }
     } catch (error) {
         console.warn(t('consoleWeatherFailed'), error);
         showErrorBanner(t('errorWeatherLoadFailed'));
-        weatherData.coords = { lat, lng };
-        weatherData.location = `Lat ${lat.toFixed(6)}, Lon ${lng.toFixed(6)}`;
         weatherData.temperature = null;
         weatherData.waveHeight = null;
         weatherData.seaSurfaceTemperature = null;
@@ -738,7 +735,7 @@ async function handleSearch(event) {
     if (!query) return;
     const coords = parseCoordinates(query);
     if (coords) {
-        await loadWeatherForCoords(coords.lat, coords.lng, true);
+        await loadWeatherForCoords(coords.lat, coords.lng);
         closeModal(elements.searchModal);
         return;
     }
@@ -749,8 +746,7 @@ async function handleSearch(event) {
             showErrorBanner(t('searchInvalidCoords'));
             return;
         }
-        await loadWeatherForCoords(result.lat, result.lng, true);
-        weatherData.location = result.name;
+        await loadWeatherForCoords(result.lat, result.lng, result.name);
         displayWeather(weatherData);
         closeModal(elements.searchModal);
     } catch (error) {
@@ -813,7 +809,7 @@ function isTouchDevice() {
 
 function handleMapCoordinateSelection(latlng) {
     if (!latlng) return;
-    loadWeatherForCoords(latlng.lat, latlng.lng, true);
+    loadWeatherForCoords(latlng.lat, latlng.lng);
 }
 
 function openModal(modal) {
@@ -1061,7 +1057,7 @@ function setupPullToRefresh() {
         if (currentY >= THRESHOLD && !refreshing) {
             refreshing = true;
             indicator.style.width = '100%';
-            await loadWeatherForCoords(weatherData.coords.lat, weatherData.coords.lng, false);
+            await loadWeatherForCoords(weatherData.coords.lat, weatherData.coords.lng, weatherData.location);
             setTimeout(() => {
                 indicator.classList.add('reset');
                 indicator.style.width = '0';
@@ -1155,7 +1151,7 @@ async function initApp() {
             highlightForecastColumn(cell.cellIndex);
          });
      }
-    await loadWeatherForCoords(weatherData.coords.lat, weatherData.coords.lng, false);
+    await loadWeatherForCoords(weatherData.coords.lat, weatherData.coords.lng, weatherData.location);
     showIOSInstallPrompt();
 }
 
