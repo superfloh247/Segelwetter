@@ -6,8 +6,19 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Segelwetter">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png">
-    <title>Segelwetter</title>
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180">
+    <title>Segelwetter – Wettervorhersage für Segler</title>
+    <meta name="description" content="Segelwetter: Wettervorhersage für Segler mit interaktiver Karte, Wind, Böen, Wellen und Segelberatung für Catamaran und Jolle.">
+    <link rel="canonical" href="https://github.com/superfloh247/Segelwetter">
+    <meta property="og:title" content="Segelwetter – Wettervorhersage für Segler">
+    <meta property="og:description" content="Wettervorhersage für Segler mit interaktiver Karte, Wind, Böen, Wellen und Segelberatung.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://github.com/superfloh247/Segelwetter">
+    <meta property="og:image" content="https://raw.githubusercontent.com/superfloh247/Segelwetter/main/apple-touch-icon.png">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Segelwetter – Wettervorhersage für Segler">
+    <meta name="twitter:description" content="Wettervorhersage für Segler mit interaktiver Karte, Wind, Böen, Wellen und Segelberatung.">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/superfloh247/Segelwetter/main/apple-touch-icon.png">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
@@ -105,6 +116,33 @@
             <label for="searchInput" class="visually-hidden">Koordinaten oder Ortsname eingeben</label>
             <input type="text" id="searchInput" placeholder="Latitude, Longitude oder Name eingeben" autocomplete="off">
             <button id="searchSubmit" class="ios-button primary">Suchen</button>
+        </div>
+    </div>
+
+    <!-- Modal for deleting a favorite (replaces window.confirm) -->
+    <div id="deleteFavoriteModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="deleteFavoriteTitle">
+        <div class="modal-content">
+            <button type="button" class="close" aria-label="Schließen">&times;</button>
+            <h2 id="deleteFavoriteTitle">Favorit löschen</h2>
+            <p id="deleteFavoriteMessage" class="dialog-message"></p>
+            <div class="modal-actions">
+                <button id="deleteFavoriteCancel" type="button" class="ios-button">Abbrechen</button>
+                <button id="deleteFavoriteConfirm" type="button" class="ios-button primary danger">Löschen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for renaming a location (replaces window.prompt) -->
+    <div id="renameLocationModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="renameLocationTitle">
+        <div class="modal-content">
+            <button type="button" class="close" aria-label="Schließen">&times;</button>
+            <h2 id="renameLocationTitle">Ortsname ändern</h2>
+            <label for="renameLocationInput" class="visually-hidden">Neuer Name</label>
+            <input type="text" id="renameLocationInput" data-autofocus autocomplete="off">
+            <div class="modal-actions">
+                <button id="renameLocationCancel" type="button" class="ios-button">Abbrechen</button>
+                <button id="renameLocationSave" type="button" class="ios-button primary">Speichern</button>
+            </div>
         </div>
     </div>
 

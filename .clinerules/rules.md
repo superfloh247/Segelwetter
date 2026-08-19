@@ -1,6 +1,5 @@
 Do not ask for confirmation for every harmless command.
 
-
 Proceed autonomously with safe operations such as:
 * reading files
 * searching the repository
@@ -26,7 +25,7 @@ Prefer:
 
 Avoid unnecessary context inflation when preparing prompts or tool input for the local model.
 
-The AI environment is local Ollama with Qwen 3.6 27b.
+The AI environment is local Ollama with Qwen 3.8 27b.
 
 Do not rewrite entire files when a targeted modification is sufficient.
 
@@ -35,7 +34,7 @@ Do not create duplicate implementations.
 Do not create temp files outside of this project.
 Create temp files in the `tmp/` folder inside this project.
 
-Use the most direct available tool for the task.
+Use the most direct available tool for the task. Prefer built-in tools, try to avoid external tools like cat, grep, less, awk, find, ...
 
 Because the project is being operated with a local 27B model, keep context efficient.
 

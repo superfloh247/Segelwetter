@@ -60,6 +60,9 @@ const deTranslations = {
     dialogCancel: 'Abbrechen',
     dialogDelete: 'Löschen',
     dialogDeleteFavoriteTitle: 'Favorit löschen',
+    dialogRenameTitle: 'Ortsname ändern',
+    dialogRenameLabel: 'Neuer Name',
+    dialogSave: 'Speichern',
 
     // Loading
     loadingWeather: 'Lädt Wetterdaten…',

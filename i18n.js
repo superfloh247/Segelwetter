@@ -92,8 +92,7 @@ function applyTranslations() {
     const searchTitleEl = document.querySelector('#searchModal .modal-content h2');
     if (searchTitleEl) searchTitleEl.textContent = t('searchTitle');
 
-    const closeBtn = document.querySelector('.modal .close');
-    if (closeBtn) closeBtn.setAttribute('aria-label', t('searchClose'));
+    document.querySelectorAll('.modal .close').forEach(btn => btn.setAttribute('aria-label', t('searchClose')));
 
     const searchLabelEl = document.querySelector('#searchModal label.visually-hidden');
     if (searchLabelEl) searchLabelEl.textContent = t('searchLabel');
@@ -103,6 +102,29 @@ function applyTranslations() {
 
     const searchSubmitEl = document.getElementById('searchSubmit');
     if (searchSubmitEl) searchSubmitEl.textContent = t('searchButton');
+
+    // Update delete-favorite dialog
+    const deleteTitleEl = document.querySelector('#deleteFavoriteModal .modal-content h2');
+    if (deleteTitleEl) deleteTitleEl.textContent = t('dialogDeleteFavoriteTitle');
+
+    const deleteCancelEl = document.getElementById('deleteFavoriteCancel');
+    if (deleteCancelEl) deleteCancelEl.textContent = t('dialogCancel');
+
+    const deleteConfirmEl = document.getElementById('deleteFavoriteConfirm');
+    if (deleteConfirmEl) deleteConfirmEl.textContent = t('dialogDelete');
+
+    // Update rename-location dialog
+    const renameTitleEl = document.querySelector('#renameLocationModal .modal-content h2');
+    if (renameTitleEl) renameTitleEl.textContent = t('dialogRenameTitle');
+
+    const renameLabelEl = document.querySelector('#renameLocationModal label.visually-hidden');
+    if (renameLabelEl) renameLabelEl.textContent = t('dialogRenameLabel');
+
+    const renameCancelEl = document.getElementById('renameLocationCancel');
+    if (renameCancelEl) renameCancelEl.textContent = t('dialogCancel');
+
+    const renameSaveEl = document.getElementById('renameLocationSave');
+    if (renameSaveEl) renameSaveEl.textContent = t('dialogSave');
 
     const errorBannerCloseEl = document.getElementById('errorBannerClose');
     if (errorBannerCloseEl) errorBannerCloseEl.setAttribute('aria-label', t('errorBannerClose'));
@@ -133,16 +155,10 @@ function applyTranslations() {
         footerPs[2].innerHTML = t('footerWeather');
     }
 
-    // Re-render dynamic content with new language
-    if (typeof updateSailingAdvice === 'function') {
-        updateSailingAdvice();
-    }
-    if (typeof displayHourlyForecast === 'function') {
-        displayHourlyForecast();
-    }
-    if (elements.windDirection && weatherData.wind.direction) {
-        elements.windDirection.textContent = formatWindDirection(weatherData.wind.direction, weatherData.wind.directionDegrees);
-    }
+    // Re-render dynamic content (forecast table, sailing advice, wind display)
+    // with the new language. script.js listens for this event and re-renders
+    // its internal state, so i18n.js stays decoupled from the IIFE scope.
+    window.dispatchEvent(new Event('segelwetter:translations-applied'));
 }
 
 // Initialize language on load

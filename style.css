@@ -33,6 +33,25 @@
     /* Danger */
     --color-danger: #bf1f1f;
     --bg-danger-subtle: rgba(255, 115, 115, 0.18);
+    --bg-error: #fdecec;
+
+    /* Forecast cell color scale (kt) – wind */
+    --forecast-wind-0-6: rgb(93, 153, 255);
+    --forecast-wind-6-10: rgb(173, 216, 230);
+    --forecast-wind-10-12: rgb(175, 221, 150);
+    --forecast-wind-12-15: rgb(255, 229, 153);
+    --forecast-wind-15-30: rgb(255, 170, 130);
+    --forecast-wind-30: rgb(255, 115, 115);
+
+    /* Forecast cell color scale (kt) – gusts */
+    --forecast-gust-0-14: rgb(175, 221, 150);
+    --forecast-gust-14-18: rgb(255, 229, 153);
+    --forecast-gust-18-30: rgb(255, 170, 130);
+    --forecast-gust-30: rgb(255, 115, 115);
+
+    /* Forecast cell text colors (on colored backgrounds) */
+    --forecast-cell-text-strong: #111;
+    --forecast-cell-text: #222;
 
     /* Shadows */
     --shadow-card: 0 24px 40px rgba(0, 0, 0, 0.16);
@@ -303,18 +322,18 @@ body {
 }
 
 /* Wind speed color scale (kt) – forecast table cells */
-.forecast-cell-wind-0-6 { background: rgb(93, 153, 255); color: #111; }
-.forecast-cell-wind-6-10 { background: rgb(173, 216, 230); color: #111; }
-.forecast-cell-wind-10-12 { background: rgb(175, 221, 150); color: #111; }
-.forecast-cell-wind-12-15 { background: rgb(255, 229, 153); color: #222; }
-.forecast-cell-wind-15-30 { background: rgb(255, 170, 130); color: #222; }
-.forecast-cell-wind-30 { background: rgb(255, 115, 115); color: #222; }
+.forecast-cell-wind-0-6 { background: var(--forecast-wind-0-6); color: var(--forecast-cell-text-strong); }
+.forecast-cell-wind-6-10 { background: var(--forecast-wind-6-10); color: var(--forecast-cell-text-strong); }
+.forecast-cell-wind-10-12 { background: var(--forecast-wind-10-12); color: var(--forecast-cell-text-strong); }
+.forecast-cell-wind-12-15 { background: var(--forecast-wind-12-15); color: var(--forecast-cell-text); }
+.forecast-cell-wind-15-30 { background: var(--forecast-wind-15-30); color: var(--forecast-cell-text); }
+.forecast-cell-wind-30 { background: var(--forecast-wind-30); color: var(--forecast-cell-text); }
 
 /* Gust color scale (kt) – forecast table cells */
-.forecast-cell-gust-0-14 { background: rgb(175, 221, 150); color: #111; }
-.forecast-cell-gust-14-18 { background: rgb(255, 229, 153); color: #222; }
-.forecast-cell-gust-18-30 { background: rgb(255, 170, 130); color: #222; }
-.forecast-cell-gust-30 { background: rgb(255, 115, 115); color: #222; }
+.forecast-cell-gust-0-14 { background: var(--forecast-gust-0-14); color: var(--forecast-cell-text-strong); }
+.forecast-cell-gust-14-18 { background: var(--forecast-gust-14-18); color: var(--forecast-cell-text); }
+.forecast-cell-gust-18-30 { background: var(--forecast-gust-18-30); color: var(--forecast-cell-text); }
+.forecast-cell-gust-30 { background: var(--forecast-gust-30); color: var(--forecast-cell-text); }
 
 /* Empty forecast state */
 .forecast-empty {
@@ -370,6 +389,42 @@ body {
     }
 }
 
+/* Tablet (~1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
+    #map {
+        height: 480px;
+        min-height: 360px;
+    }
+
+    .temperature {
+        font-size: 1.75rem;
+    }
+
+    .sailing-advice-columns {
+        gap: 0.75rem;
+    }
+}
+
+/* Große Bildschirme (>1200px) */
+@media (min-width: 1200px) {
+    .container {
+        max-width: 1400px;
+    }
+
+    #map {
+        height: 560px;
+        min-height: 420px;
+    }
+
+    h1 {
+        font-size: 1.9rem;
+    }
+
+    .temperature {
+        font-size: 2.4rem;
+    }
+}
+
 .hidden {
     display: none !important;
 }
@@ -421,7 +476,7 @@ body {
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    background: #fdecec;
+    background: var(--bg-error);
     color: var(--color-danger);
     border: 1px solid var(--color-danger);
     border-radius: var(--radius-md);
@@ -744,6 +799,31 @@ footer {
     color: var(--color-white);
 }
 
+.ios-button.danger {
+    background: var(--color-danger);
+    color: var(--color-white);
+}
+
 .ios-button:hover {
     opacity: 0.9;
+}
+
+/* Dialog-Modals (Löschen / Umbenennen) */
+.dialog-message {
+    color: var(--color-text);
+    font-size: 0.95rem;
+    text-align: center;
+    margin-bottom: 1.25rem;
+    word-break: break-word;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.25rem;
+}
+
+.modal-actions .ios-button {
+    flex: 1;
+    margin-bottom: 0;
 }

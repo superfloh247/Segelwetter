@@ -60,6 +60,9 @@ const enTranslations = {
     dialogCancel: 'Cancel',
     dialogDelete: 'Delete',
     dialogDeleteFavoriteTitle: 'Delete favorite',
+    dialogRenameTitle: 'Rename location',
+    dialogRenameLabel: 'New name',
+    dialogSave: 'Save',
 
     // Loading
     loadingWeather: 'Loading weather data…',

@@ -1,4 +1,5 @@
 // Segelwetter - Wettervorhersage für Segler
+(() => {
 
 const STORAGE_KEY_LAST_LOCATION = 'segelwetter:lastLocation';
 const FORECAST_HOURS = 7 * 24;
@@ -82,10 +83,7 @@ function setupBookmarkDelegation() {
 
         if (removeBtn) {
             event.stopPropagation();
-            const confirmed = window.confirm(t('deleteFavoriteConfirm').replace('{name}', name));
-            if (confirmed) {
-                deleteFavorite(name);
-            }
+            requestDeleteFavorite(name);
             return;
         }
 
@@ -169,11 +167,39 @@ function addOrUpdateFavorite() {
     renderBookmarks();
 }
 
-function promptLocationName() {
+// Eigene Dialog-Modals statt window.confirm / window.prompt (bessere UX auf Mobilgeräten)
+
+function requestDeleteFavorite(name) {
+    if (elements.deleteFavoriteModal) {
+        elements.deleteFavoriteModal.dataset.favoriteName = name;
+    }
+    if (elements.deleteFavoriteMessage) {
+        elements.deleteFavoriteMessage.textContent = t('deleteFavoriteConfirm').replace('{name}', name);
+    }
+    openModal(elements.deleteFavoriteModal);
+}
+
+function confirmDeleteFavorite() {
+    const name = elements.deleteFavoriteModal?.dataset.favoriteName;
+    closeModal(elements.deleteFavoriteModal);
+    if (name) {
+        deleteFavorite(name);
+    }
+}
+
+function requestRenameLocation() {
     const currentLabel = weatherData.location || `Lat ${weatherData.coords.lat.toFixed(6)}, Lon ${weatherData.coords.lng.toFixed(6)}`;
-    const newName = window.prompt(t('promptLocationName'), currentLabel);
-    if (newName && newName.trim()) {
-        weatherData.location = newName.trim();
+    if (elements.renameLocationInput) {
+        elements.renameLocationInput.value = currentLabel;
+    }
+    openModal(elements.renameLocationModal);
+}
+
+function confirmRenameLocation() {
+    const newName = elements.renameLocationInput?.value.trim();
+    closeModal(elements.renameLocationModal);
+    if (newName) {
+        weatherData.location = newName;
         displayWeather(weatherData);
     }
 }
@@ -205,7 +231,15 @@ const elements = {
     searchSubmit: document.getElementById('searchSubmit'),
     errorBanner: document.getElementById('errorBanner'),
     errorBannerText: document.getElementById('errorBannerText'),
-    errorBannerClose: document.getElementById('errorBannerClose')
+    errorBannerClose: document.getElementById('errorBannerClose'),
+    deleteFavoriteModal: document.getElementById('deleteFavoriteModal'),
+    deleteFavoriteMessage: document.getElementById('deleteFavoriteMessage'),
+    deleteFavoriteCancel: document.getElementById('deleteFavoriteCancel'),
+    deleteFavoriteConfirm: document.getElementById('deleteFavoriteConfirm'),
+    renameLocationModal: document.getElementById('renameLocationModal'),
+    renameLocationInput: document.getElementById('renameLocationInput'),
+    renameLocationCancel: document.getElementById('renameLocationCancel'),
+    renameLocationSave: document.getElementById('renameLocationSave')
 };
 
 function formatWindDirection(direction, directionDegrees) {
@@ -552,83 +586,110 @@ function displayHourlyForecast() {
         }
     });
 
-    const rows = [
-        {
-            label: t('forecastBaseWind'),
-            values: weatherData.hourlyForecast.map(item => `${kmhToKnots(item.speed)}`)
-        },
-        {
-            label: t('forecastGusts'),
-            values: weatherData.hourlyForecast.map(item => `${kmhToKnots(item.gusts)}`)
-        },
-        {
-            label: t('forecastTemperature'),
-            values: weatherData.hourlyForecast.map(item => `${item.temp}${t('celsius')}`)
-        },
-        {
-            label: t('forecastWindDirection'),
-            values: weatherData.hourlyForecast.map(item => item.direction)
-        }
-    ];
+    const forecast = weatherData.hourlyForecast;
+    const hasCape = forecast.some(item => typeof item.cape === 'number' && item.cape > 500);
+    const hasSeaTemp = forecast.some(item => typeof item.seaSurfaceTemp === 'number' && !isNaN(item.seaSurfaceTemp));
+    const hasWaveHeight = forecast.some(item => typeof item.waveHeight === 'number' && !isNaN(item.waveHeight));
 
-    const hasCape = weatherData.hourlyForecast.some(item => typeof item.cape === 'number' && item.cape > 500);
-    const hasSeaTemp = weatherData.hourlyForecast.some(item => typeof item.seaSurfaceTemp === 'number' && !isNaN(item.seaSurfaceTemp));
-    const hasWaveHeight = weatherData.hourlyForecast.some(item => typeof item.waveHeight === 'number' && !isNaN(item.waveHeight));
+    // Tabellenzeilen per DocumentFragment aufbauen (ein einziger Reflow)
+    // statt innerHTML-String-Konkatenation – performanter bei größeren Datenmengen.
+    const fragment = document.createDocumentFragment();
+
+    // thead: Datumszeile (gruppiert) + Uhrzeitenzeile
+    const thead = document.createElement('thead');
+
+    const dateRow = document.createElement('tr');
+    dateRow.className = 'date-row';
+    const dateCorner = document.createElement('th');
+    dateCorner.className = 'label-cell empty-cell';
+    dateRow.appendChild(dateCorner);
+    dateGroups.forEach(group => {
+        const th = document.createElement('th');
+        th.colSpan = group.count;
+        th.textContent = group.dateLabel;
+        dateRow.appendChild(th);
+    });
+    thead.appendChild(dateRow);
+
+    const timeRow = document.createElement('tr');
+    timeRow.className = 'time-row';
+    const timeCorner = document.createElement('th');
+    timeCorner.className = 'label-cell empty-cell';
+    timeRow.appendChild(timeCorner);
+    headerRow.forEach(cell => {
+        const th = document.createElement('th');
+        th.textContent = cell;
+        timeRow.appendChild(th);
+    });
+    thead.appendChild(timeRow);
+    fragment.appendChild(thead);
+
+    // tbody: eine Zeile pro Messgröße
+    const tbody = document.createElement('tbody');
+
+    function appendMetricRow(label, cells) {
+        const tr = document.createElement('tr');
+        const th = document.createElement('th');
+        th.className = 'label-cell';
+        th.textContent = label;
+        tr.appendChild(th);
+        cells.forEach(cell => {
+            const td = document.createElement('td');
+            if (cell.className) {
+                td.className = cell.className;
+            }
+            if (cell.danger) {
+                const span = document.createElement('span');
+                span.className = 'cape-danger';
+                span.textContent = '!!';
+                td.appendChild(span);
+            } else {
+                td.textContent = cell.value != null ? cell.value : '';
+            }
+            tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+    }
+
+    appendMetricRow(t('forecastBaseWind'), forecast.map(item => {
+        const knots = kmhToKnots(item.speed);
+        return { value: `${knots}`, className: windSpeedClass(Number(knots)) };
+    }));
+    appendMetricRow(t('forecastGusts'), forecast.map(item => {
+        const knots = kmhToKnots(item.gusts);
+        return { value: `${knots}`, className: gustSpeedClass(Number(knots)) };
+    }));
+    appendMetricRow(t('forecastTemperature'), forecast.map(item => ({ value: `${item.temp}${t('celsius')}` })));
+    appendMetricRow(t('forecastWindDirection'), forecast.map(item => ({ value: item.direction })));
 
     if (hasSeaTemp) {
-        rows.push({
-            label: t('forecastWaterTemp'),
-            values: weatherData.hourlyForecast.map(item => item.seaSurfaceTemp != null && !isNaN(item.seaSurfaceTemp) ? `${(Math.round(item.seaSurfaceTemp * 10) / 10)}°C` : '—')
-        });
+        appendMetricRow(t('forecastWaterTemp'), forecast.map(item => ({
+            value: item.seaSurfaceTemp != null && !isNaN(item.seaSurfaceTemp) ? `${(Math.round(item.seaSurfaceTemp * 10) / 10)}°C` : '—'
+        })));
     }
 
     if (hasCape) {
-        rows.push({
-            label: t('forecastStorm'),
-            values: weatherData.hourlyForecast.map(item => {
-                if (typeof item.cape !== 'number' || isNaN(item.cape) || item.cape <= 500) {
-                    return '';
-                }
-                if (item.cape > 1500) {
-                    return '<span class="cape-danger">!!</span>';
-                }
-                return '!';
-            })
-        });
+        appendMetricRow(t('forecastStorm'), forecast.map(item => {
+            const cape = item.cape;
+            if (typeof cape !== 'number' || isNaN(cape) || cape <= 500) {
+                return { value: '' };
+            }
+            if (cape > 1500) {
+                return { danger: true };
+            }
+            return { value: '!' };
+        }));
     }
 
     if (hasWaveHeight) {
-        rows.push({
-            label: t('forecastWaveHeight'),
-            values: weatherData.hourlyForecast.map(item => item.waveHeight != null && !isNaN(item.waveHeight) ? `${(Math.round(item.waveHeight * 10) / 10)} m` : '—')
-        });
+        appendMetricRow(t('forecastWaveHeight'), forecast.map(item => ({
+            value: item.waveHeight != null && !isNaN(item.waveHeight) ? `${(Math.round(item.waveHeight * 10) / 10)} m` : '—'
+        })));
     }
+    fragment.appendChild(tbody);
 
-    let html = '<thead>';
-    html += '<tr class="date-row"><th class="label-cell empty-cell"></th>' + dateGroups.map(group => {
-        return `<th colspan="${group.count}">${group.dateLabel}</th>`;
-    }).join('') + '</tr>';
-    html += '<tr class="time-row"><th class="label-cell empty-cell"></th>' + headerRow.map(cell => `<th>${cell}</th>`).join('') + '</tr>';
-    html += '</thead><tbody>';
-
-    rows.forEach((row, rowIndex) => {
-        html += '<tr>';
-        html += `<th class="label-cell">${row.label}</th>`;
-        html += row.values.map(value => {
-            const numericValue = Number(value);
-            if (rowIndex === 0) {
-                return `<td class="${windSpeedClass(numericValue)}">${value}</td>`;
-            }
-            if (rowIndex === 1) {
-                return `<td class="${gustSpeedClass(numericValue)}">${value}</td>`;
-            }
-            return `<td>${value}</td>`;
-        }).join('');
-        html += '</tr>';
-    });
-    html += '</tbody>';
-
-    table.innerHTML = html;
+    table.innerHTML = '';
+    table.appendChild(fragment);
     
     // Auto-select first data column (index 1) if no column is selected yet
     // Column 0 is the label cell, so first weather data starts at column 1
@@ -758,10 +819,12 @@ function handleMapCoordinateSelection(latlng) {
 function openModal(modal) {
     if (modal) {
         modal.classList.remove('hidden');
-        // Set focus to the first focusable element when modal opens
-        const firstFocusable = modal.querySelector('input, button, textarea, [tabindex]:not([tabindex="-1"])');
-        if (firstFocusable) {
-            setTimeout(() => firstFocusable.focus(), 50);
+        // Set focus to the element marked with data-autofocus (if present),
+        // otherwise to the first focusable element when modal opens
+        const target = modal.querySelector('[data-autofocus]')
+            || modal.querySelector('input, button, textarea, [tabindex]:not([tabindex="-1"])');
+        if (target) {
+            setTimeout(() => target.focus(), 50);
         }
     }
 }
@@ -1020,7 +1083,7 @@ function setupPullToRefresh() {
 
 function setupModalHandlers() {
     if (elements.locationName) {
-        elements.locationName.addEventListener('click', promptLocationName);
+        elements.locationName.addEventListener('click', requestRenameLocation);
     }
     if (elements.favoriteBtn) {
         elements.favoriteBtn.addEventListener('click', addOrUpdateFavorite);
@@ -1032,18 +1095,41 @@ function setupModalHandlers() {
             closeModal(modal);
         });
     });
-    if (elements.searchModal) {
-        elements.searchModal.addEventListener('click', event => {
-            if (event.target === elements.searchModal) {
-                closeModal(elements.searchModal);
-            }
-        });
-    }
+    // Backdrop-Klick schließt alle Modals
+    [elements.searchModal, elements.deleteFavoriteModal, elements.renameLocationModal].forEach(modal => {
+        if (modal) {
+            modal.addEventListener('click', event => {
+                if (event.target === modal) {
+                    closeModal(modal);
+                }
+            });
+        }
+    });
     if (elements.searchSubmit) {
         elements.searchSubmit.addEventListener('click', handleSearch);
     }
     if (elements.errorBannerClose) {
         elements.errorBannerClose.addEventListener('click', hideErrorBanner);
+    }
+    if (elements.deleteFavoriteCancel) {
+        elements.deleteFavoriteCancel.addEventListener('click', () => closeModal(elements.deleteFavoriteModal));
+    }
+    if (elements.deleteFavoriteConfirm) {
+        elements.deleteFavoriteConfirm.addEventListener('click', confirmDeleteFavorite);
+    }
+    if (elements.renameLocationCancel) {
+        elements.renameLocationCancel.addEventListener('click', () => closeModal(elements.renameLocationModal));
+    }
+    if (elements.renameLocationSave) {
+        elements.renameLocationSave.addEventListener('click', confirmRenameLocation);
+    }
+    // Enter im Eingabefeld bestätigt das Umbenennen
+    if (elements.renameLocationInput) {
+        elements.renameLocationInput.addEventListener('keydown', event => {
+            if (event.key === 'Enter') {
+                confirmRenameLocation();
+            }
+        });
     }
 }
 
@@ -1073,4 +1159,16 @@ async function initApp() {
     showIOSInstallPrompt();
 }
 
+// i18n.js übersetzt statische HTML-Elemente und dispatcht dieses Event danach;
+// dynamischer Inhalt (Vorhersagetabelle, Segelberatung, Windanzeige) wird hier
+// neu gerendert, damit i18n.js keinen Zugriff auf IIFE-interne Variablen braucht.
+window.addEventListener('segelwetter:translations-applied', () => {
+    updateSailingAdvice();
+    displayHourlyForecast();
+    if (elements.windDirection && weatherData.wind.direction) {
+        elements.windDirection.textContent = formatWindDirection(weatherData.wind.direction, weatherData.wind.directionDegrees);
+    }
+});
+
 document.addEventListener('DOMContentLoaded', initApp);
+})();
