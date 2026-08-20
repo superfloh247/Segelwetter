@@ -226,9 +226,6 @@ const elements = {
     windGusts: document.getElementById('windGusts'),
     favoriteBtn: document.getElementById('favoriteBtn'),
     bookmarksList: document.getElementById('bookmarksList'),
-    searchModal: document.getElementById('searchModal'),
-    searchInput: document.getElementById('searchInput'),
-    searchSubmit: document.getElementById('searchSubmit'),
     errorBanner: document.getElementById('errorBanner'),
     errorBannerText: document.getElementById('errorBannerText'),
     errorBannerClose: document.getElementById('errorBannerClose'),
@@ -697,64 +694,6 @@ function displayHourlyForecast() {
     }
 }
 
-function parseCoordinates(input) {
-    const parts = input.split(',').map(part => part.trim());
-    if (parts.length !== 2) return null;
-    const lat = parseFloat(parts[0]);
-    const lng = parseFloat(parts[1]);
-    if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
-    return { lat, lng };
-}
-
-// Nominatim (OpenStreetMap) Geocoding für Ortsnamen – nur bei user-initiierten Suchen (Rate-Limit: ~1 req/s)
-async function geocodeLocation(query) {
-    const url = new URL('https://nominatim.openstreetmap.org/search');
-    url.searchParams.set('q', query);
-    url.searchParams.set('format', 'json');
-    url.searchParams.set('limit', '1');
-
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
-    const response = await fetch(url.href, {
-        signal: controller.signal,
-        headers: { 'Accept-Language': t('dateLocale') }
-    }).finally(() => clearTimeout(timer));
-    if (!response.ok) {
-        throw new Error(`Nominatim response error: ${response.status}`);
-    }
-    const results = await response.json();
-    if (!Array.isArray(results) || results.length === 0) return null;
-    const lat = parseFloat(results[0].lat);
-    const lng = parseFloat(results[0].lon);
-    if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
-    return { lat, lng, name: results[0].display_name };
-}
-async function handleSearch(event) {
-    event.preventDefault();
-    const query = elements.searchInput?.value.trim();
-    if (!query) return;
-    const coords = parseCoordinates(query);
-    if (coords) {
-        await loadWeatherForCoords(coords.lat, coords.lng);
-        closeModal(elements.searchModal);
-        return;
-    }
-    // Fallback: Ortsname per Nominatim auflösen
-    try {
-        const result = await geocodeLocation(query);
-        if (!result) {
-            showErrorBanner(t('searchInvalidCoords'));
-            return;
-        }
-        await loadWeatherForCoords(result.lat, result.lng, result.name);
-        displayWeather(weatherData);
-        closeModal(elements.searchModal);
-    } catch (error) {
-        console.warn(t('consoleGeocodeFailed'), error);
-        showErrorBanner(`${t('searchErrorTitle')}: ${error.message}`);
-    }
-}
-
 function showLoadingOverlay(show) {
     const overlay = document.getElementById('loadingOverlay');
     if (!overlay) return;
@@ -1092,7 +1031,7 @@ function setupModalHandlers() {
         });
     });
     // Backdrop-Klick schließt alle Modals
-    [elements.searchModal, elements.deleteFavoriteModal, elements.renameLocationModal].forEach(modal => {
+    [elements.deleteFavoriteModal, elements.renameLocationModal].forEach(modal => {
         if (modal) {
             modal.addEventListener('click', event => {
                 if (event.target === modal) {
@@ -1101,9 +1040,6 @@ function setupModalHandlers() {
             });
         }
     });
-    if (elements.searchSubmit) {
-        elements.searchSubmit.addEventListener('click', handleSearch);
-    }
     if (elements.errorBannerClose) {
         elements.errorBannerClose.addEventListener('click', hideErrorBanner);
     }

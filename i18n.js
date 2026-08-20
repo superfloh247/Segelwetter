@@ -88,20 +88,7 @@ function applyTranslations() {
     const favHeading = document.querySelector('.bookmarks-section h3');
     if (favHeading) favHeading.textContent = t('favoritesTitle');
 
-    // Update search modal
-    const searchTitleEl = document.querySelector('#searchModal .modal-content h2');
-    if (searchTitleEl) searchTitleEl.textContent = t('searchTitle');
-
     document.querySelectorAll('.modal .close').forEach(btn => btn.setAttribute('aria-label', t('searchClose')));
-
-    const searchLabelEl = document.querySelector('#searchModal label.visually-hidden');
-    if (searchLabelEl) searchLabelEl.textContent = t('searchLabel');
-
-    const searchInputEl = document.getElementById('searchInput');
-    if (searchInputEl) searchInputEl.placeholder = t('searchPlaceholder');
-
-    const searchSubmitEl = document.getElementById('searchSubmit');
-    if (searchSubmitEl) searchSubmitEl.textContent = t('searchButton');
 
     // Update delete-favorite dialog
     const deleteTitleEl = document.querySelector('#deleteFavoriteModal .modal-content h2');

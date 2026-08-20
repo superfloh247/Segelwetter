@@ -46,14 +46,7 @@ const deTranslations = {
     directionNW: 'Nord-West',
 
     // Modals
-    searchTitle: 'Ort suchen',
     searchClose: 'Schließen',
-    searchLabel: 'Koordinaten oder Ortsname eingeben',
-    searchPlaceholder: 'Latitude, Longitude oder Name eingeben',
-    searchButton: 'Suchen',
-    searchInvalidCoords: 'Bitte gültige Koordinaten im Format "lat, lon" eingeben.',
-    searchErrorTitle: 'Suche fehlgeschlagen',
-    promptLocationName: 'Gib einen Namen für diese Koordinate ein:',
 
     // Dialoge (M13 – ersetzt window.confirm / window.prompt)
     dialogOk: 'OK',
@@ -86,7 +79,6 @@ const deTranslations = {
     consoleCannotLoadLocation: 'Kann letzte Position nicht laden.',
     consoleMarineWaveFailed: 'Marine-Wellenhöhe konnte nicht geladen werden:',
     consoleWeatherFailed: 'Open-Meteo-Daten konnten nicht geladen werden:',
-    consoleGeocodeFailed: 'Nominatim-Geocoding fehlgeschlagen:',
     consoleLeafletNotLoaded: 'Leaflet ist nicht geladen.',
 
     // Date/time locale
