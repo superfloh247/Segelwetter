@@ -12,6 +12,24 @@ function handleMapCoordinateSelection(latlng) {
     loadWeatherForCoords(latlng.lat, latlng.lng);
 }
 
+// Wechselt zu den Koordinaten der aktuellen Position des Clients (Geolocation API)
+function locateCurrentPosition() {
+    if (!('geolocation' in navigator)) {
+        console.warn(t('consoleGeolocationNotSupported'));
+        return;
+    }
+    navigator.geolocation.getCurrentPosition(
+        position => {
+            const { latitude, longitude } = position.coords;
+            loadWeatherForCoords(latitude, longitude);
+        },
+        error => {
+            console.warn(t('consoleGeolocationFailed'), error);
+        },
+        { timeout: 10000, maximumAge: 60000 }
+    );
+}
+
 function createWindMarkerIcon(directionDegrees, speedKnots) {
     const normalized = ((directionDegrees % 360) + 360) % 360;
     const rotation = (normalized + 90) % 360; // Windpfeil zeigt in die tatsächliche Windrichtung
@@ -68,6 +86,11 @@ function setupMap() {
                 handleMapCoordinateSelection(event.latlng);
             }
         });
+    }
+
+    const locateBtn = document.getElementById('locateBtn');
+    if (locateBtn) {
+        locateBtn.addEventListener('click', locateCurrentPosition);
     }
 
     const forecast = getForecastByColumn(selectedForecastColumn);

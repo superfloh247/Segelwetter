@@ -21,6 +21,9 @@ const deTranslations = {
     kt: 'kt',
     celsius: '°C',
 
+    // Map
+    mapLocateLabel: 'Zu meiner Position springen',
+
     // Forecast table rows
     forecastBaseWind: 'Grundwind',
     forecastGusts: 'Böen',
@@ -80,6 +83,8 @@ const deTranslations = {
     consoleMarineWaveFailed: 'Marine-Wellenhöhe konnte nicht geladen werden:',
     consoleWeatherFailed: 'Open-Meteo-Daten konnten nicht geladen werden:',
     consoleLeafletNotLoaded: 'Leaflet ist nicht geladen.',
+    consoleGeolocationNotSupported: 'Geolokalisierung wird von diesem Browser nicht unterstützt.',
+    consoleGeolocationFailed: 'Aktuelle Position konnte nicht ermittelt werden:',
 
     // Date/time locale
     dateLocale: 'de-DE'

@@ -21,6 +21,9 @@ const enTranslations = {
     kt: 'kt',
     celsius: '°C',
 
+    // Map
+    mapLocateLabel: 'Jump to my location',
+
     // Forecast table rows
     forecastBaseWind: 'Base wind',
     forecastGusts: 'Gusts',
@@ -80,6 +83,8 @@ const enTranslations = {
     consoleMarineWaveFailed: 'Marine wave height could not be loaded:',
     consoleWeatherFailed: 'Open-Meteo data could not be loaded:',
     consoleLeafletNotLoaded: 'Leaflet is not loaded.',
+    consoleGeolocationNotSupported: 'Geolocation is not supported by this browser.',
+    consoleGeolocationFailed: 'Current position could not be determined:',
 
     // Date/time locale
     dateLocale: 'en-GB'

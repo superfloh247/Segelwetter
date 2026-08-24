@@ -664,7 +664,31 @@ footer {
 }
 
 .map-wrapper {
+    position: relative;
     margin-bottom: 0.5rem;
+}
+
+.map-locate-btn {
+    position: absolute;
+    right: 10px;
+    bottom: 32px;
+    z-index: 1000;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--border-card);
+    border-radius: 50%;
+    background: var(--bg-card);
+    box-shadow: var(--shadow-marker);
+    font-size: 1.3rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.map-locate-btn:hover {
+    transform: scale(1.1);
 }
 
 /* Weather panel inner layout */

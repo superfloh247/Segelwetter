@@ -77,6 +77,10 @@ function applyTranslations() {
     const locationNameEl = document.getElementById('locationName');
     if (locationNameEl) locationNameEl.textContent = t('locationDefault');
 
+    // Update map locate button
+    const locateBtnEl = document.getElementById('locateBtn');
+    if (locateBtnEl) locateBtnEl.setAttribute('aria-label', t('mapLocateLabel'));
+
     // Update sailing advice labels
     const catLabel = document.querySelector('#sailingAdviceCat').parentElement.querySelector('strong');
     if (catLabel) catLabel.textContent = t('sailingAdviceCat');
