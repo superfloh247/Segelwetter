@@ -29,8 +29,6 @@ const weatherData = {
         gusts: 0
     },
     temperature: '--',
-    waveHeight: null,
-    seaSurfaceTemperature: null,
     hourlyForecast: []
 };
 

@@ -154,9 +154,6 @@ async function loadWeatherForCoords(lat, lng, locationName = null) {
         ]);
         const current = data.current_weather || {};
         weatherData.temperature = Number(current.temperature ?? (data.hourly?.temperature_2m?.[0] ?? 0));
-        const firstWave = marineData?.hourly?.wave_height?.[0];
-        weatherData.waveHeight = firstWave != null ? Number(firstWave) : null;
-        weatherData.seaSurfaceTemperature = data.hourly?.sea_surface_temperature?.[0] != null ? Number(data.hourly?.sea_surface_temperature?.[0]) : null;
         weatherData.wind.speed = Number(current.windspeed ?? (data.hourly?.windspeed_10m?.[0] ?? 0));
         weatherData.wind.directionDegrees = Number(current.winddirection ?? (data.hourly?.winddirection_10m?.[0] ?? 0));
         weatherData.wind.direction = degreesToDirection(weatherData.wind.directionDegrees);
@@ -173,8 +170,6 @@ async function loadWeatherForCoords(lat, lng, locationName = null) {
         console.warn(t('consoleWeatherFailed'), error);
         showErrorBanner(t('errorWeatherLoadFailed'));
         weatherData.temperature = null;
-        weatherData.waveHeight = null;
-        weatherData.seaSurfaceTemperature = null;
         weatherData.wind.speed = null;
         weatherData.wind.directionDegrees = null;
         weatherData.wind.direction = null;

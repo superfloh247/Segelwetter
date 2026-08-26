@@ -8,7 +8,6 @@ const deTranslations = {
     // Sailing advice
     sailingAdviceCat: 'Cat',
     sailingAdviceJolle: 'Jolle',
-    sailingAdviceLoading: 'Berechne den nächsten geeigneten Zeitraum...',
     noSlotFound: 'Kein guter Termin gefunden 😢',
     slotFormat: '{date}, {time} Uhr — Grundwind {wind} kt, Böen {gusts} kt',
 
@@ -18,7 +17,6 @@ const deTranslations = {
 
     // Weather panel
     locationDefault: 'Standort',
-    kt: 'kt',
     celsius: '°C',
 
     // Map
@@ -52,7 +50,6 @@ const deTranslations = {
     searchClose: 'Schließen',
 
     // Dialoge (M13 – ersetzt window.confirm / window.prompt)
-    dialogOk: 'OK',
     dialogCancel: 'Abbrechen',
     dialogDelete: 'Löschen',
     dialogDeleteFavoriteTitle: 'Favorit löschen',
