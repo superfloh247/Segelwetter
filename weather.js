@@ -17,6 +17,8 @@ const isStandalone = window.matchMedia("(display-mode: standalone)").matches
 const weatherData = {
     location: null, // Set in loadWeatherForCoords(); shown as '-' until then
     coords: {
+        // Default seed location (Berlin) used before a saved last-location or a
+        // user-selected map coordinate is available.
         lat: 52.44318115023351,
         lng: 13.675055360861572
     },
@@ -289,18 +291,4 @@ function gustSpeedClass(speedKnots) {
 
 function kmhToKnots(kmh) {
     return speedToKnots(kmh / 3.6);
-}
-
-function directionToDegrees(direction) {
-    const mapping = {
-        N: 0,
-        NE: 45,
-        E: 90,
-        SE: 135,
-        S: 180,
-        SW: 225,
-        W: 270,
-        NW: 315
-    };
-    return mapping[direction] ?? 0;
 }

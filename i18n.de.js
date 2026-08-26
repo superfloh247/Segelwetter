@@ -73,7 +73,7 @@ const deTranslations = {
     // Footer
     footerLicense: 'Lizenz: Beerware — Wenn dir diese App gefällt, spendiere mir einen Kaffee: <a href="https://ko-fi.com/florian500" target="_blank" rel="noopener">https://ko-fi.com/florian500</a>',
     footerMap: 'Kartenkacheln & Daten: OpenStreetMap contributors — <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">ODbL</a>. Kartenanzeige mit <a href="https://leafletjs.com/" target="_blank" rel="noopener">Leaflet</a> (BSD-2-Clause).',
-    footerWeather: 'Wetterdaten: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> — siehe Nutzungsbedingungen und Lizenz auf deren Webseite.',
+    footerWeather: 'Wetterdaten: Open-Meteo.com – <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>; <a href="https://open-meteo.com/en/terms" target="_blank" rel="noopener">Nutzungsbedingungen</a>',
 
     // Console warnings
     consoleCannotSaveLocation: 'Kann letzte Position nicht speichern.',

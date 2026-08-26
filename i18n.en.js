@@ -73,7 +73,7 @@ const enTranslations = {
     // Footer
     footerLicense: 'License: Beerware — If you like this app, buy me a coffee: <a href="https://ko-fi.com/florian500" target="_blank" rel="noopener">https://ko-fi.com/florian500</a>',
     footerMap: 'Map tiles & data: OpenStreetMap contributors — <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">ODbL</a>. Map display with <a href="https://leafletjs.com/" target="_blank" rel="noopener">Leaflet</a> (BSD-2-Clause).',
-    footerWeather: 'Weather data: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> — see terms of use and license on their website.',
+    footerWeather: 'Weather data: Open-Meteo.com – <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>; <a href="https://open-meteo.com/en/terms" target="_blank" rel="noopener">Terms of use</a>',
 
     // Console warnings
     consoleCannotSaveLocation: 'Cannot save last location.',

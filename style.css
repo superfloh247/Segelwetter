@@ -342,15 +342,6 @@ body {
     color: var(--color-text-secondary);
 }
 
-.hourly-forecast-table thead th.sticky-header {
-    position: sticky;
-    text-align: center;
-    padding: 0.2rem 0.4rem;
-    height: 1.8rem;
-    line-height: 1.8rem;
-    z-index: 4;
-}
-
 .hourly-forecast-table thead tr.date-row th {
     top: 0;
 }
