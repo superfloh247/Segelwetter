@@ -29,7 +29,7 @@ function buildHourlyForecastFromOpenMeteo(data, marineData) {
             dateLabel,
             speed: Number(windSpeeds[i] ?? 0),
             gusts: Number(windGusts[i] ?? windSpeeds[i] ?? 0),
-            temp: Math.round(Number(temperatures[i] ?? 0)),
+            temp: Math.round(Number(temperatures[i] ?? 0) * 10) / 10,
             cape: capeVal,
             waveHeight: waveHeightVal,
             seaSurfaceTemp: seaSurfaceVal,
