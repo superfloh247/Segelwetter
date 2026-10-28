@@ -77,7 +77,7 @@ const deTranslations = {
     consoleCannotLoadFavorites: 'Kann Favoriten nicht laden.',
     consoleCannotSaveFavorites: 'Kann Favoriten nicht speichern.',
     consoleCannotLoadLocation: 'Kann letzte Position nicht laden.',
-    consoleMarineWaveFailed: 'Marine-Wellenhöhe konnte nicht geladen werden:',
+    consoleMarineFailed: 'Marine-Daten konnten nicht geladen werden:',
     consoleWeatherFailed: 'Open-Meteo-Daten konnten nicht geladen werden:',
     consoleLeafletNotLoaded: 'Leaflet ist nicht geladen.',
     consoleGeolocationNotSupported: 'Geolokalisierung wird von diesem Browser nicht unterstützt.',

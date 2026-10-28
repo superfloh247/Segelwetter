@@ -8,7 +8,7 @@ function buildHourlyForecastFromOpenMeteo(data, marineData) {
     const windGusts = data.hourly?.windgusts_10m || [];
     const capes = data.hourly?.cape || [];
     const waveHeights = marineData?.hourly?.wave_height;
-    const seaSurfaceTemps = data.hourly?.sea_surface_temperature;
+    const seaSurfaceTemps = marineData?.hourly?.sea_surface_temperature;
 
     const now = new Date();
     const start = new Date(now);
@@ -98,7 +98,7 @@ async function fetchWeatherForCoords(lat, lng) {
     const url = new URL('https://api.open-meteo.com/v1/forecast');
     url.searchParams.set('latitude', String(lat));
     url.searchParams.set('longitude', String(lng));
-    url.searchParams.set('hourly', 'temperature_2m,windspeed_10m,winddirection_10m,windgusts_10m,sea_surface_temperature,cape');
+    url.searchParams.set('hourly', 'temperature_2m,windspeed_10m,winddirection_10m,windgusts_10m,cape');
     url.searchParams.set('current_weather', 'true');
     url.searchParams.set('windspeed_unit', 'kmh');
     url.searchParams.set('timezone', 'auto');
@@ -116,14 +116,14 @@ async function fetchWeatherForCoords(lat, lng) {
     return data;
 }
 
-async function fetchMarineWaveHeight(lat, lng) {
+async function fetchMarineData(lat, lng) {
     const start = new Date();
     start.setMinutes(0, 0, 0);
     const end = new Date(start.getTime() + FORECAST_HOURS * 3600 * 1000);
     const url = new URL('https://marine-api.open-meteo.com/v1/marine');
     url.searchParams.set('latitude', String(lat));
     url.searchParams.set('longitude', String(lng));
-    url.searchParams.set('hourly', 'wave_height');
+    url.searchParams.set('hourly', 'wave_height,sea_surface_temperature');
     url.searchParams.set('timezone', 'auto');
     url.searchParams.set('start_date', start.toISOString().slice(0, 10));
     url.searchParams.set('end_date', end.toISOString().slice(0, 10));
@@ -147,8 +147,8 @@ async function loadWeatherForCoords(lat, lng, locationName = null) {
     try {
         const [data, marineData] = await Promise.all([
             fetchWeatherForCoords(lat, lng),
-            fetchMarineWaveHeight(lat, lng).catch(error => {
-                console.warn(t('consoleMarineWaveFailed'), error);
+            fetchMarineData(lat, lng).catch(error => {
+                console.warn(t('consoleMarineFailed'), error);
                 return null;
             })
         ]);

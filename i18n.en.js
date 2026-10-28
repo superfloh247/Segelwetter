@@ -77,7 +77,7 @@ const enTranslations = {
     consoleCannotLoadFavorites: 'Cannot load favorites.',
     consoleCannotSaveFavorites: 'Cannot save favorites.',
     consoleCannotLoadLocation: 'Cannot load last location.',
-    consoleMarineWaveFailed: 'Marine wave height could not be loaded:',
+    consoleMarineFailed: 'Marine data could not be loaded:',
     consoleWeatherFailed: 'Open-Meteo data could not be loaded:',
     consoleLeafletNotLoaded: 'Leaflet is not loaded.',
     consoleGeolocationNotSupported: 'Geolocation is not supported by this browser.',
