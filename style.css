@@ -355,6 +355,10 @@ body {
 .forecast-cell-gust-18-30 { background: var(--forecast-gust-18-30); color: var(--forecast-cell-text); }
 .forecast-cell-gust-30 { background: var(--forecast-gust-30); color: var(--forecast-cell-text); }
 
+/* Tide extremes (m) – forecast table cells (Open Waters Tides API) */
+.forecast-cell-tide-high { background: #bfe3ff; color: var(--forecast-cell-text-strong); font-weight: 600; }
+.forecast-cell-tide-low { background: #dbe9d8; color: var(--forecast-cell-text-strong); font-weight: 600; }
+
 /* Empty forecast state */
 .forecast-empty {
     text-align: center;

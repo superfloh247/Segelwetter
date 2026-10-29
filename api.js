@@ -137,6 +137,56 @@ async function fetchMarineData(lat, lng) {
     return response.json();
 }
 
+// Open Waters Tides API (https://openwaters.io) – Tideextreme der nächstgelegenen Station,
+// kein API-Key erforderlich. Die API ordnet JEDER Koordinate die nächste Station zu,
+// daher auch Binnenorten (z. B. München -> Venedig, ~309 km). Nur Stationen innerhalb
+// von MAX_TIDE_STATION_DISTANCE_KM werden akzeptiert, sonst bleibt die Tide-Zeile verborgen.
+const MAX_TIDE_STATION_DISTANCE_KM = 100;
+
+async function fetchTideData(lat, lng) {
+    const start = new Date();
+    start.setMinutes(0, 0, 0);
+    const end = new Date(start.getTime() + FORECAST_HOURS * 3600 * 1000);
+    const cacheKey = `tide:${lat.toFixed(2)}:${lng.toFixed(2)}:${start.toISOString().slice(0, 10)}:${end.toISOString().slice(0, 10)}`;
+    const cached = getCachedResponse(cacheKey);
+    if (cached) return cached;
+    const url = new URL('https://api.openwaters.io/tides/extremes');
+    url.searchParams.set('latitude', String(lat));
+    url.searchParams.set('longitude', String(lng));
+    url.searchParams.set('start', `${start.toISOString().slice(0, 19)}Z`);
+    url.searchParams.set('end', `${end.toISOString().slice(0, 19)}Z`);
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    const response = await fetch(url.href, { signal: controller.signal }).finally(() => clearTimeout(timer));
+    if (!response.ok) {
+        throw new Error(`Open Waters Tides response error: ${response.status}`);
+    }
+    const data = await response.json();
+    setCachedResponse(cacheKey, data);
+    return data;
+}
+
+// Liefert die Tideextreme für die aktuelle Koordinate – leer, wenn keine gültigen
+// Daten vorliegen oder die nächstgelegene Station zu weit entfernt ist (Binnenlage).
+function getTideExtremes(tideData) {
+    if (!tideData || !Array.isArray(tideData.extremes) || tideData.extremes.length === 0) return [];
+    if (typeof tideData.distance === 'number' && tideData.distance > MAX_TIDE_STATION_DISTANCE_KM) return [];
+    return tideData.extremes
+        .filter(item => item && item.time && typeof item.level === 'number' && !isNaN(item.level))
+        .map(item => {
+            const time = new Date(item.time);
+            return {
+                timestamp: time.getTime(),
+                level: item.level,
+                high: !!item.high,
+                timeText: time.toLocaleTimeString(t('dateLocale'), { hour: '2-digit', minute: '2-digit', hour12: false }),
+                timeTextDate: time.toLocaleDateString(t('dateLocale'), { weekday: 'short', day: '2-digit', month: '2-digit' })
+            };
+        })
+        .sort((a, b) => a.timestamp - b.timestamp);
+}
+
 async function loadWeatherForCoords(lat, lng, locationName = null) {
     showLoadingOverlay(true);
     hideErrorBanner();
@@ -145,10 +195,14 @@ async function loadWeatherForCoords(lat, lng, locationName = null) {
     // Die zuletzt angezeigte Position immer speichern – auch wenn der Wetter-Request fehlschlägt
     saveLastLocation(weatherData.coords, weatherData.location);
     try {
-        const [data, marineData] = await Promise.all([
+        const [data, marineData, tideData] = await Promise.all([
             fetchWeatherForCoords(lat, lng),
             fetchMarineData(lat, lng).catch(error => {
                 console.warn(t('consoleMarineFailed'), error);
+                return null;
+            }),
+            fetchTideData(lat, lng).catch(error => {
+                console.warn(t('consoleTideFailed'), error);
                 return null;
             })
         ]);
@@ -159,6 +213,8 @@ async function loadWeatherForCoords(lat, lng, locationName = null) {
         weatherData.wind.direction = degreesToDirection(weatherData.wind.directionDegrees);
         weatherData.wind.gusts = Number(current.windgust ?? (data.hourly?.windgusts_10m?.[0] ?? weatherData.wind.speed));
         weatherData.hourlyForecast = buildHourlyForecastFromOpenMeteo(data, marineData);
+        weatherData.tideExtremes = getTideExtremes(tideData);
+        weatherData.tideStation = tideData?.station?.name || null;
         displayWeather(weatherData);
         displayHourlyForecast();
         updateSailingAdvice();
@@ -175,6 +231,8 @@ async function loadWeatherForCoords(lat, lng, locationName = null) {
         weatherData.wind.direction = null;
         weatherData.wind.gusts = null;
         weatherData.hourlyForecast = [];
+        weatherData.tideExtremes = [];
+        weatherData.tideStation = null;
         displayWeather(weatherData);
         displayHourlyForecast();
         updateSailingAdvice();

@@ -154,6 +154,9 @@ function displayHourlyForecast() {
                 td.appendChild(span);
             } else {
                 td.textContent = cell.value != null ? cell.value : '';
+                if (cell.title) {
+                    td.title = cell.title;
+                }
             }
             tr.appendChild(td);
         });
@@ -194,6 +197,20 @@ function displayHourlyForecast() {
         appendMetricRow(t('forecastWaveHeight'), forecast.map(item => ({
             value: item.waveHeight != null && !isNaN(item.waveHeight) ? `${(Math.round(item.waveHeight * 10) / 10)} m` : '—'
         })));
+    }
+
+    // Tide-Zeile (Open Waters Tides API): nur bei vorhandenen Extremen der
+    // nächstgelegenen Station anzeigen – sonst komplett versteckt, wie die Warnzeilen.
+    const tideExtremes = weatherData.tideExtremes || [];
+    if (tideExtremes.length > 0) {
+        appendMetricRow(t('forecastTide'), forecast.map(item => {
+            const extreme = tideExtremes.find(ext => Math.abs(ext.timestamp - item.timestamp) < 3600 * 1000);
+            if (!extreme) return { value: '' };
+            const levelText = `${(Math.round(extreme.level * 10) / 10)} m`;
+            return extreme.high
+                ? { value: levelText, className: 'forecast-cell-tide-high', title: `${t('tideHigh')}: ${extreme.timeText} (${extreme.timeTextDate})` }
+                : { value: levelText, className: 'forecast-cell-tide-low', title: `${t('tideLow')}: ${extreme.timeText} (${extreme.timeTextDate})` };
+        }));
     }
     fragment.appendChild(tbody);
 

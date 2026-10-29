@@ -29,7 +29,9 @@ const weatherData = {
         gusts: 0
     },
     temperature: '--',
-    hourlyForecast: []
+    hourlyForecast: [],
+    tideExtremes: [],
+    tideStation: null
 };
 
 function saveLastLocation(coords, location) {

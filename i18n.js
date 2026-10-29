@@ -144,6 +144,9 @@ function applyTranslations() {
         footerPs[0].innerHTML = t('footerLicense');
         footerPs[1].innerHTML = t('footerMap');
         footerPs[2].innerHTML = t('footerWeather');
+        if (footerPs.length >= 4) {
+            footerPs[3].innerHTML = t('footerTide');
+        }
     }
 
     // Re-render dynamic content (forecast table, sailing advice, wind display)

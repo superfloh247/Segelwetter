@@ -30,6 +30,9 @@ const enTranslations = {
     forecastWaterTemp: 'Water temp.',
     forecastStorm: 'Storm',
     forecastWaveHeight: 'Wave height',
+    forecastTide: 'Tide',
+    tideHigh: 'High tide',
+    tideLow: 'Low tide',
     noForecastData: 'No forecast data available',
 
     // Error banner
@@ -71,6 +74,7 @@ const enTranslations = {
     footerLicense: 'License: Beerware — If you like this app, buy me a coffee: <a href="https://ko-fi.com/florian500" target="_blank" rel="noopener">https://ko-fi.com/florian500</a>',
     footerMap: 'Map tiles & data: OpenStreetMap contributors — <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">ODbL</a>. Map display with <a href="https://leafletjs.com/" target="_blank" rel="noopener">Leaflet</a> (BSD-2-Clause).',
     footerWeather: 'Weather data: Open-Meteo.com – <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>; <a href="https://open-meteo.com/en/terms" target="_blank" rel="noopener">Terms of use</a>',
+    footerTide: 'Tide data: <a href="https://openwaters.io" target="_blank" rel="noopener">Open Waters Tides API</a> (TICON-4, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>) – based on the nearest tide-generating station',
 
     // Console warnings
     consoleCannotSaveLocation: 'Cannot save last location.',
@@ -79,6 +83,7 @@ const enTranslations = {
     consoleCannotLoadLocation: 'Cannot load last location.',
     consoleMarineFailed: 'Marine data could not be loaded:',
     consoleWeatherFailed: 'Open-Meteo data could not be loaded:',
+    consoleTideFailed: 'Tide data could not be loaded:',
     consoleLeafletNotLoaded: 'Leaflet is not loaded.',
     consoleGeolocationNotSupported: 'Geolocation is not supported by this browser.',
     consoleGeolocationFailed: 'Current position could not be determined:',
