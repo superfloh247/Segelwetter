@@ -184,7 +184,7 @@ async function fetchMarineData(lat, lng) {
 // kein API-Key erforderlich. Die API ordnet JEDER Koordinate die nächste Station zu,
 // daher auch Binnenorten (z. B. München -> Venedig, ~309 km). Nur Stationen innerhalb
 // von MAX_TIDE_STATION_DISTANCE_KM werden akzeptiert, sonst bleibt die Tide-Zeile verborgen.
-const MAX_TIDE_STATION_DISTANCE_KM = 100;
+const MAX_TIDE_STATION_DISTANCE_KM = 50;
 
 async function fetchTideData(lat, lng) {
     // Identisches Fenster wie fetchWeatherForCoords, damit die Tideextreme
