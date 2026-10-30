@@ -190,8 +190,8 @@ function displayHourlyForecast() {
         })));
     }
 
-    // Tide-Zeile (Open Waters Tides API): nur bei vorhandenen Extremen der
-    // nächstgelegenen Station anzeigen – sonst komplett versteckt, wie die Warnzeilen.
+    // Tide-Zeile: nur bei vorhandenen Extremen anzeigen – sonst komplett
+    // versteckt, wie die Warnzeilen.
     const tideExtremes = weatherData.tideExtremes || [];
     if (tideExtremes.length > 0) {
         appendMetricRow(t('forecastTide'), forecast.map(item => {

@@ -8,7 +8,6 @@ Wettervorhersage-App für Segler – zeigt Wind, Temperatur und Seebedingungen i
 - **Stündliche Vorhersage** – 7-Tage-Prognose mit Grundwind, Böen, Temperatur und Windrichtung (farbkodierte Darstellung)
 - **Segelberatung** – Empfohlene Segelzeiten für Catamaran (8–14 kt) und Jolle (3–6 kt)
 - **Marinedaten** – Wellenhöhe und Wassertemperatur (falls verfügbar)
-- **Tide** – Hoch-/Niedrigwasser der nächstgelegenen Gezeitenstation (Open Waters Tides API); Zeile wird ausgeblendet, wenn keine Station innerhalb von 50 km liegt
 - **Gewitterwarnung** – CAPE-basierte Gewitteranzeige
 - **Favoriten** – Orte speichern und schnell wechseln (localStorage)
 - **iOS PWA** – Installierbar als Standalone-App mit Pull-to-Refresh
@@ -47,4 +46,3 @@ Beerware – wenn dir die App gefällt, spendiere dem Autor einen Kaffee: [ko-fi
 - Kartenkacheln: [OpenStreetMap contributors](https://www.openstreetmap.org/copyright) – ODbL
 - Kartenanzeige: [Leaflet](https://leafletjs.com/) – BSD-2-Clause
 - Wetterdaten: [Open-Meteo](https://open-meteo.com) – siehe Nutzungsbedingungen auf der Webseite
-- Tidedaten: [Open Waters Tides API](https://openwaters.io) (TICON-4, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)) – basierend auf der nächstgelegenen Gezeitenstation (max. 50 km)

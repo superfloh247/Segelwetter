@@ -30,8 +30,7 @@ const weatherData = {
     },
     temperature: '--',
     hourlyForecast: [],
-    tideExtremes: [],
-    tideStation: null
+    tideExtremes: []
 };
 
 function saveLastLocation(coords, location) {
