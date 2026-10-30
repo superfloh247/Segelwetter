@@ -24,8 +24,9 @@ function findNextGoodSailingSlot(criteria) {
     const now = Date.now();
     const nextSlot = weatherData.hourlyForecast.find(item => {
         if (!item.timestamp || item.timestamp <= now) return false;
-        const date = new Date(item.timestamp);
-        const hour = date.getHours();
+        // `hour` ist die lokale Uhrzeit des Ortes (Open-Meteo timezone=auto),
+        // damit wird das 10–18 h-Fenster in der Zeitzone des Ortes ausgewertet
+        const hour = Number(item.hour.slice(0, 2));
         const baseWind = kmhToKnots(item.speed);
         const gustWind = kmhToKnots(item.gusts);
         return baseWind >= criteria.baseWindMin && baseWind <= criteria.baseWindMax && gustWind <= criteria.gustMax && hour >= criteria.hourMin && hour < criteria.hourMax;
@@ -35,20 +36,10 @@ function findNextGoodSailingSlot(criteria) {
         return t('noSlotFound');
     }
 
-    const date = new Date(nextSlot.timestamp);
-    const formattedDate = date.toLocaleDateString(t('dateLocale'), {
-        weekday: 'short',
-        day: '2-digit',
-        month: '2-digit'
-    });
-    const formattedTime = date.toLocaleTimeString(t('dateLocale'), {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-    });
+    // Datum und Uhrzeit sind bereits ortslokal (dateLabel + hour stammen aus dem Forecast-Item)
     return t('slotFormat')
-        .replace('{date}', formattedDate)
-        .replace('{time}', formattedTime)
+        .replace('{date}', nextSlot.dateLabel)
+        .replace('{time}', nextSlot.hour)
         .replace('{wind}', kmhToKnots(nextSlot.speed).toFixed(1))
         .replace('{gusts}', kmhToKnots(nextSlot.gusts).toFixed(1));
 }

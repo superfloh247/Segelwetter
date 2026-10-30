@@ -10,16 +10,55 @@ function buildHourlyForecastFromOpenMeteo(data, marineData) {
     const waveHeights = marineData?.hourly?.wave_height;
     const seaSurfaceTemps = marineData?.hourly?.sea_surface_temperature;
 
-    const now = new Date();
-    const start = new Date(now);
-    start.setMinutes(0, 0, 0);
+    // Open-Meteo (timezone=auto) liefert `time` als lokale Uhrzeit des Ortes
+    // (`timezone` = IANA-Name, `utc_offset_seconds` = aktuelles UTC-Offset). Daraus
+    // werden abgeleitet:
+    //  - die aktuelle lokale Stunde als Wall-Clock-String (zum Filtern vergangener Stunden)
+    //  - die echten UTC-Epochs je Eintrag (für Tide-Zuordnung und Segelberatung),
+    //    DST-exakt über den IANA-Zonennamen, nicht nur über das aktuelle Offset
+    const zoneName = data.timezone;
+    const utcOffsetSeconds = Number(data.utc_offset_seconds ?? 0);
+    const localCurrentHour = new Date(Date.now() + utcOffsetSeconds * 1000).toISOString().slice(0, 13) + ':00';
+
+    let zoneFormatter = null;
+    try {
+        zoneFormatter = new Intl.DateTimeFormat('en-US', {
+            timeZone: zoneName,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
+    } catch (error) {
+        zoneFormatter = null; // unbekannter Zonenname -> Fallback auf konstantes Offset
+    }
+    function zoneOffsetMsAt(epochMs) {
+        if (!zoneFormatter) return utcOffsetSeconds * 1000;
+        const parts = zoneFormatter.formatToParts(new Date(epochMs));
+        const get = type => Number(parts.find(part => part.type === type).value);
+        return Date.UTC(get('year'), get('month') - 1, get('day'), get('hour') % 24, get('minute'), get('second')) - epochMs;
+    }
+    function wallClockToEpoch(timeString) {
+        const wallAsUTC = Date.parse(`${timeString}:00Z`);
+        let epoch = wallAsUTC - utcOffsetSeconds * 1000;
+        epoch = wallAsUTC - zoneOffsetMsAt(epoch);
+        epoch = wallAsUTC - zoneOffsetMsAt(epoch); // zweiter Durchlauf: Kantenfall am Wechseltag
+        return epoch;
+    }
 
     const forecast = [];
     for (let i = 0; i < timeStrings.length && forecast.length < FORECAST_HOURS; i += 1) {
-        const time = new Date(timeStrings[i]);
-        if (time < start) continue;
-        const hour = time.toLocaleTimeString(t('dateLocale'), { hour: '2-digit', hour12: false });
-        const dateLabel = time.toLocaleDateString(t('dateLocale'), { weekday: 'short', day: '2-digit', month: '2-digit' });
+        const timeString = timeStrings[i];
+        // Wall-Clock-Strings haben festes Format und Nullen → lexikografisch = chronologisch
+        if (timeString < localCurrentHour) continue;
+        const timestamp = wallClockToEpoch(timeString);
+        const hour = timeString.slice(11, 16);
+        // Das Kalendardatum eines Wall-Clock-Strings ist zeitzonenunabhängig;
+        // lokaler Mittag ist DST-sicher
+        const dateLabel = new Date(`${timeString.slice(0, 10)}T12:00:00`).toLocaleDateString(t('dateLocale'), { weekday: 'short', day: '2-digit', month: '2-digit' });
         const directionDegrees = Number(windDirections[i] ?? 0);
         const capeVal = (capes && i < capes.length && capes[i] != null) ? Number(capes[i]) : null;
         const waveHeightVal = (waveHeights && i < waveHeights.length && waveHeights[i] != null) ? Number(waveHeights[i]) : null;
@@ -35,7 +74,7 @@ function buildHourlyForecastFromOpenMeteo(data, marineData) {
             seaSurfaceTemp: seaSurfaceVal,
             direction: degreesToDirection(directionDegrees),
             directionDegrees,
-            timestamp: time.getTime()
+            timestamp
         });
     }
     return forecast;
@@ -89,9 +128,12 @@ function setCachedResponse(key, data) {
 }
 
 async function fetchWeatherForCoords(lat, lng) {
-    const start = new Date();
-    start.setMinutes(0, 0, 0);
-    const end = new Date(start.getTime() + FORECAST_HOURS * 3600 * 1000);
+    // Puffer von ±24 h um das aktuelle UTC-Datum: Open-Meteo interpretiert
+    // start_date/end_date als lokale Kalendertage des Ortes (timezone=auto).
+    // So liegt der aktuelle lokale Tag des Ortes immer im Request-Fenster,
+    // unabhängig davon, ob der Ort zeitlich vor oder hinter dem Betrachter liegt.
+    const start = new Date(Date.now() - 24 * 3600 * 1000);
+    const end = new Date(Date.now() + (FORECAST_HOURS + 48) * 3600 * 1000);
     const cacheKey = `weather:${lat.toFixed(4)}:${lng.toFixed(4)}:${start.toISOString().slice(0, 10)}:${end.toISOString().slice(0, 10)}`;
     const cached = getCachedResponse(cacheKey);
     if (cached) return cached;
@@ -117,9 +159,10 @@ async function fetchWeatherForCoords(lat, lng) {
 }
 
 async function fetchMarineData(lat, lng) {
-    const start = new Date();
-    start.setMinutes(0, 0, 0);
-    const end = new Date(start.getTime() + FORECAST_HOURS * 3600 * 1000);
+    // Identisches Fenster wie fetchWeatherForCoords – das Marine-Array ist
+    // indexweise mit dem Wetter-Array ausgerichtet.
+    const start = new Date(Date.now() - 24 * 3600 * 1000);
+    const end = new Date(Date.now() + (FORECAST_HOURS + 48) * 3600 * 1000);
     const url = new URL('https://marine-api.open-meteo.com/v1/marine');
     url.searchParams.set('latitude', String(lat));
     url.searchParams.set('longitude', String(lng));
@@ -144,9 +187,10 @@ async function fetchMarineData(lat, lng) {
 const MAX_TIDE_STATION_DISTANCE_KM = 100;
 
 async function fetchTideData(lat, lng) {
-    const start = new Date();
-    start.setMinutes(0, 0, 0);
-    const end = new Date(start.getTime() + FORECAST_HOURS * 3600 * 1000);
+    // Identisches Fenster wie fetchWeatherForCoords, damit die Tideextreme
+    // sicher innerhalb der angezeigten Vorhersage-Spalten liegen
+    const start = new Date(Date.now() - 24 * 3600 * 1000);
+    const end = new Date(Date.now() + (FORECAST_HOURS + 48) * 3600 * 1000);
     const cacheKey = `tide:${lat.toFixed(2)}:${lng.toFixed(2)}:${start.toISOString().slice(0, 10)}:${end.toISOString().slice(0, 10)}`;
     const cached = getCachedResponse(cacheKey);
     if (cached) return cached;
@@ -172,6 +216,18 @@ async function fetchTideData(lat, lng) {
 function getTideExtremes(tideData) {
     if (!tideData || !Array.isArray(tideData.extremes) || tideData.extremes.length === 0) return [];
     if (typeof tideData.distance === 'number' && tideData.distance > MAX_TIDE_STATION_DISTANCE_KM) return [];
+    // Tidedaten sind UTC-Epochs; Anzeige in der lokalen Zeitzone der Station
+    // (IANA-Name aus der API), nicht in der Zeitzone des Betrachters
+    const stationTimezone = tideData.station?.timezone;
+    const formatInStationTime = (date, options) => {
+        try {
+            return stationTimezone
+                ? date.toLocaleString(t('dateLocale'), { ...options, timeZone: stationTimezone })
+                : date.toLocaleString(t('dateLocale'), options);
+        } catch (error) {
+            return date.toLocaleString(t('dateLocale'), options);
+        }
+    };
     return tideData.extremes
         .filter(item => item && item.time && typeof item.level === 'number' && !isNaN(item.level))
         .map(item => {
@@ -180,8 +236,8 @@ function getTideExtremes(tideData) {
                 timestamp: time.getTime(),
                 level: item.level,
                 high: !!item.high,
-                timeText: time.toLocaleTimeString(t('dateLocale'), { hour: '2-digit', minute: '2-digit', hour12: false }),
-                timeTextDate: time.toLocaleDateString(t('dateLocale'), { weekday: 'short', day: '2-digit', month: '2-digit' })
+                timeText: formatInStationTime(time, { hour: '2-digit', minute: '2-digit', hour12: false }),
+                timeTextDate: formatInStationTime(time, { weekday: 'short', day: '2-digit', month: '2-digit' })
             };
         })
         .sort((a, b) => a.timestamp - b.timestamp);
