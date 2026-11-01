@@ -187,6 +187,11 @@ async function loadWeatherForCoords(lat, lng, locationName = null) {
     weatherData.location = locationName || `Lat ${lat.toFixed(6)}, Lon ${lng.toFixed(6)}`;
     // Die zuletzt angezeigte Position immer speichern – auch wenn der Wetter-Request fehlschlägt
     saveLastLocation(weatherData.coords, weatherData.location);
+    // EOT20: Gezeiten-Fliesen für diese Position im Hintergrund vorladen
+    // (nicht blockierend – die Vorhersage in EOT-007 wartet auf dieselben Daten)
+    if (typeof preloadTideTiles === 'function') {
+        preloadTideTiles(lat, lng);
+    }
     try {
         const [data, marineData] = await Promise.all([
             fetchWeatherForCoords(lat, lng),
