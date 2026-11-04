@@ -188,7 +188,7 @@ async function loadWeatherForCoords(lat, lng, locationName = null) {
     // Die zuletzt angezeigte Position immer speichern – auch wenn der Wetter-Request fehlschlägt
     saveLastLocation(weatherData.coords, weatherData.location);
     // EOT20: Gezeiten-Fliesen für diese Position im Hintergrund vorladen
-    // (nicht blockierend – die Vorhersage in EOT-007 wartet auf dieselben Daten)
+    // (nicht blockierend – die Gezeiten-Vorhersage wartet auf dieselben Daten)
     if (typeof preloadTideTiles === 'function') {
         preloadTideTiles(lat, lng);
     }

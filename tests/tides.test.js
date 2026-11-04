@@ -1,5 +1,5 @@
 'use strict';
-// EOT-006 Tests: EOT20-Loader (tides.js)
+// EOT20-Loader-Tests (tides.js)
 // Läuft unter Node ohne externe Abhängigkeiten:
 //  - IndexedDB wird durch eine In-Memory-Instanz emuliert (persistiert pro Test-Umgebung,
 //    simuliert dadurch "neue Browser-Sitzung mit gleichem Cache")

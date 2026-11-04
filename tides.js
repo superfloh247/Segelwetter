@@ -1,7 +1,7 @@
-// Segelwetter – EOT20 Tide-Daten-Loader (EOT-006)
+// Segelwetter – EOT20 Tide-Daten-Loader
 // Lädt die EOT20-Fliesen (data/eot20/) gezielt für die aktuelle Position,
 // verifiziert SHA-256-Prüfsummen und legt Fliesen in IndexedDB als
-// versionsbasierten Cache ab. Die Vorhersage-Logik (EOT-007) baut auf
+// versionsbasierten Cache ab. Die Gezeiten-Vorhersage baut auf
 // diesem Loader auf.
 
 const EOT = {
@@ -338,7 +338,7 @@ async function loadTilesForLocation(lat, lon) {
     return Promise.all(recs.map(rec => loadTile(rec)));
 }
 
-// Konstituenten-Amplituden/-Phasen am exakten Gitterpunkt (für EOT-007).
+// Konstituenten-Amplituden/-Phasen am exakten Gitterpunkt.
 // Gibt null zurück, wenn der Punkt Land (Maske 0) oder ohne Fliesen ist.
 function constituentsAt(lat, lon, tiles) {
     if (!tiles || tiles.length === 0) return null;
@@ -375,6 +375,225 @@ function preloadTideTiles(lat, lon) {
     return loadTilesForLocation(lat, lon).catch(err => {
         console.warn('EOT20: Vorladen der Gezeiten-Fliesen fehlgeschlagen für', lat, lon, err);
     });
+}
+
+// ---------- Vorhersage (EOT-007) ----------
+// Gezeiten-Höhen aus den dekodierten Konstituenten. Reproduziert die FES/EOT20-
+// Konvention exakt (nach pyTMD `arguments` + `nodal_modulation`, corrections='FES'):
+//   elevation(t) = Σ_c  f_c(t) · A_c · cos( G_c(t) + u_c(t) − φ_c )
+// G_c ist das vollständige Doodson-Argument (Greenwich-Anteil + lokale Zeit),
+// f_c/u_c die nodalen Korrekturen, φ_c die in der Fliese gespeicherte Phase (Grad).
+// Amplituden A_c in m (Fliese speichert cm → /100).
+
+const EOT_D2R = Math.PI / 180;
+const EOT_J2000_MJD = 51544.5;         // MJD von J2000.0 (2000-01-01T12:00, pyTMD _mjd_j2000)
+const EOT_UNIX_MJD = 40587;            // MJD des Unix-Epochs (1970-01-01 00:00 UTC)
+// MJD (absolute) aus Unix-ms-Zeitstempel.
+function eotMjdFromMs(ms) {
+    return EOT_UNIX_MJD + ms / 86400000;
+}
+
+// Doodson-/Cartwright-Zahlen (tau, s, h, p, n, ps, k=90) je Konstituent.
+// Quelle: pyTMD `coefficients_table` (FES-Pfad). k=90 ist die feste Phasenkonstante.
+const EOT_DOODSON = {
+    '2N2': [2, -2, 0, 2, 0, 0, 0],
+    'J1':  [1, 2, 0, -1, 0, 0, 1],
+    'K1':  [1, 1, 0, 0, 0, 0, 1],
+    'K2':  [2, 2, 0, 0, 0, 0, 0],
+    'M2':  [2, 0, 0, 0, 0, 0, 0],
+    'M4':  [4, 0, 0, 0, 0, 0, 0],
+    'MF':  [0, 2, 0, 0, 0, 0, 0],
+    'MM':  [0, 1, 0, -1, 0, 0, 0],
+    'N2':  [2, -1, 0, 1, 0, 0, 0],
+    'O1':  [1, -1, 0, 0, 0, 0, -1],
+    'P1':  [1, 1, -2, 0, 0, 0, -1],
+    'Q1':  [1, -2, 0, 1, 0, 0, -1],
+    'S1':  [1, 1, -1, 0, 0, 0, 2],
+    'S2':  [2, 2, -2, 0, 0, 0, 0],
+    'SA':  [0, 0, 1, 0, 0, -1, 0],
+    'SSA': [0, 0, 2, 0, 0, 0, 0],
+    'T2':  [2, 2, -3, 0, 0, 1, 0]
+};
+
+// Mittere Längen (Mond s, Sonne h, Mondperigee p, aufsteigender Knot n,
+// Sonnenperigee ps) in Grad. Nach pyTMD `mean_longitudes` method='ASTRO5'
+// (Meeus/ASTRO5-Koeffizienten), was der FES-Pfad (corrections='FES') nutzt.
+// mjd ist das absolute MJD des Zeitpunkts.
+function eotPoly(c, T) {
+    // Direkte Potenzreihe Σ c[i]·T^i (pyTMD `polynomial_sum`)
+    let sum = 0;
+    for (let i = 0; i < c.length; i++) sum += c[i] * Math.pow(T, i);
+    return sum;
+}
+function eotMeanLongitudes(mjd) {
+    const T = (mjd - EOT_J2000_MJD) / 36525.0;   // Jahrhunderte seit J2000
+    const moon = [218.3164477, 481267.88123421, -1.5786e-3, 1.855835e-6, -1.53388e-8];
+    const elong = [297.8501921, 445267.1114034, -1.8819e-3, 1.83195e-6, -8.8445e-9];
+    const perigee = [83.3532465, 4069.0137287, -1.032e-2, -1.249172e-5];
+    const node = [125.04452, -1934.136261, 2.0708e-3, 2.22222e-6];
+    const s = eotPoly(moon, T);                              // Mond
+    const h = eotPoly(moon, T) - eotPoly(elong, T);          // Sonne = Mond − Elongation
+    const p = eotPoly(perigee, T);                           // Mondperigee
+    const n = eotPoly(node, T);                              // Knot
+    const ps = 282.94 + 1.7192 * T;                          // Sonnenperigee (Simon 1994)
+    const mod360 = x => ((x % 360) + 360) % 360;
+    return { s: mod360(s), h: mod360(h), p: mod360(p), n: mod360(n), ps: mod360(ps) };
+}
+
+// Schureman-Zusatzwinkel für die FES-nodalen Korrekturen (II, xi, nu, nu', nu'').
+// pyTMD `astro.schureman_arguments`; p/n sind Radiant (Mondperigee, Knot).
+function eotSchureman(p, n) {
+    const ii = Math.acos(0.913694997 - 0.035692561 * Math.cos(n));
+    const at1 = Math.atan(1.01883 * Math.tan(n / 2));
+    const at2 = Math.atan(0.64412 * Math.tan(n / 2));
+    let xi = -at1 - at2 + n;
+    xi = Math.atan2(Math.sin(xi), Math.cos(xi));
+    const nu = at1 - at2;
+    const pPrime = Math.sin(2 * ii) * Math.sin(nu);
+    const qPrime = Math.sin(2 * ii) * Math.cos(nu) + 0.3347;
+    const nuP = Math.atan(pPrime / qPrime);          // nu' (k1)
+    const pSec = (Math.sin(ii) ** 2) * Math.sin(2 * nu);
+    const qSec = (Math.sin(ii) ** 2) * Math.cos(2 * nu) + 0.0727;
+    const nuS = 0.5 * Math.atan(pSec / qSec);        // nu'' (k2)
+    return { ii, xi, nu, nuP, nuS };
+}
+
+// Nodale Faktoren f und Winkel u (Radiant) für die 17 EOT20-Konstituenten,
+// FES-Konvention (pyTMD `nodal_modulation`, corrections='FES').
+function eotNodalFes(name, sch) {
+    const { ii, xi, nu, nuP, nuS } = sch;
+    const sinII = Math.sin(ii), cosII2h = Math.cos(ii / 2);
+    switch (name) {
+        case 'M2': case '2N2': case 'N2':
+            return { f: (cosII2h ** 4) / 0.9154, u: 2 * xi - 2 * nu };
+        case 'M4':
+            // Kompositwelle: aus M2 rekursiv (f_M2^2, 2·u_M2)
+            return { f: ((cosII2h ** 4) / 0.9154) ** 2, u: 4 * xi - 4 * nu };
+        case 'MF':
+            return { f: (sinII ** 2) / 0.1578, u: -2 * xi };
+        case 'MM':
+            return { f: (2 / 3 - sinII * sinII) / 0.5021, u: 0 };
+        case 'O1': case 'Q1':
+            return { f: sinII * (cosII2h ** 2) / 0.38, u: 2 * xi - nu };
+        case 'J1':
+            return { f: Math.sin(2 * ii) / 0.7214, u: -nu };
+        case 'K1': {
+            const a = 0.8965 * (Math.sin(2 * ii) ** 2);
+            const b = 0.6001 * Math.sin(2 * ii) * Math.cos(nu);
+            return { f: Math.sqrt(a + b + 0.1006), u: -nuP };
+        }
+        case 'K2': {
+            const a = 19.0444 * (sinII ** 4);
+            const b = 2.7702 * (sinII ** 2) * Math.cos(2 * nu);
+            return { f: Math.sqrt(a + b + 0.0981), u: -2 * nuS };
+        }
+        default:
+            // P1, S1, S2, SA, SSA, T2 → f=1, u=0 (FES: keine nodale Korrektur)
+            return { f: 1, u: 0 };
+    }
+}
+
+// Gezeitenhöhe in Metern zum Zeitpunkt ms (Epoch) am Gitterpunkt {amps, phases}.
+// Amps in Metern (cm/100 bereits vorab umgerechnet).
+function eotElevationMs(ms, amps, phases) {
+    const args = eotArgsMs(ms);
+    let h = 0;
+    for (const name in EOT_DOODSON) {
+        const A = amps[name];
+        if (!A) continue;
+        const phi = (phases[name] || 0) * EOT_D2R;
+        const a = args[name];
+        h += a.f * A * Math.cos(a.G * EOT_D2R + a.u - phi);
+    }
+    return h;
+}
+
+// Pro Konstituent: G (Doodson-Argument, Grad), u (nodaler Winkel, Radiant),
+// f (nodaler Faktor) zum Zeitpunkt ms. Nur die in EOT_DOODSON enthaltenen Wellen.
+function eotArgsMs(ms) {
+    const mjd = eotMjdFromMs(ms);
+    const ml = eotMeanLongitudes(mjd);
+    const hour = (((ms % 86400000) + 86400000) % 86400000) / 3600000;
+    const tau = 15 * hour - ml.s + ml.h;                   // mittlere Mondzeit (Grad)
+    const N = ml.n * EOT_D2R, P = ml.p * EOT_D2R;
+    const sch = eotSchureman(P, N);
+    const fargs = [tau, ml.s, ml.h, ml.p, ml.n, ml.ps, 90];
+    const out = {};
+    for (const name in EOT_DOODSON) {
+        const coef = EOT_DOODSON[name];
+        let G = 0;
+        for (let i = 0; i < 7; i++) G += fargs[i] * coef[i];
+        const nodal = eotNodalFes(name, sch);
+        out[name] = { G, f: nodal.f, u: nodal.u };
+    }
+    return out;
+}
+
+// Extrema (Hoch-/Niedrigwasser) in [startMs, endMs] am Gitterpunkt.
+// Gibt sortiertes Array von { timestamp, high, level } oder null zurück.
+// Methodik: grobes Raster (5 min) → lokale Extremum-Erkennung → Feinverfeinerung
+// (20 ms) um jedes grobe Extremum. Die Feinverfeinerung genügt, weil die
+// Gezeitenkurve um das Extremum lokal annähernd parabolisch verläuft.
+function eotFindExtremes(amps, phases, startMs, endMs) {
+    const COARSE = 5 * 60000;      // 5 min
+    const FINE = 20;               // 20 ms
+    const pts = [];
+    for (let ms = startMs; ms <= endMs; ms += COARSE) {
+        pts.push({ ms, h: eotElevationMs(ms, amps, phases) });
+    }
+    if (pts.length < 3) return null;
+    const ext = [];
+    for (let k = 1; k < pts.length - 1; k++) {
+        const a = pts[k - 1].h, b = pts[k].h, c = pts[k + 1].h;
+        if (b > a && b > c) ext.push({ ms: pts[k].ms, high: true });
+        else if (b < a && b < c) ext.push({ ms: pts[k].ms, high: false });
+    }
+    if (ext.length === 0) return null;
+    for (const e of ext) {
+        let best = e.ms, bestH = eotElevationMs(e.ms, amps, phases);
+        const lo = e.ms - COARSE / 2, hi = e.ms + COARSE / 2;
+        for (let ms = lo; ms <= hi; ms += FINE) {
+            const h = eotElevationMs(ms, amps, phases);
+            if (e.high ? h > bestH : h < bestH) { best = ms; bestH = h; }
+        }
+        e.timestamp = best;
+        e.level = bestH;
+    }
+    return ext;
+}
+
+// Öffentliche Vorhersage: lädt Fliesen, liest die Konstituenten am exakten
+// Gitterpunkt, berechnet Hoch-/Niedrigwasser im Fenster [startMs, endMs].
+// Gibt null bei Land/keinen Daten (UI zeigt dann keine Gezeitenzeile).
+async function predictTideExtremes(lat, lon, startMs, endMs, opts) {
+    opts = opts || {};
+    try {
+        const tiles = await loadTilesForLocation(lat, lon);
+        const c = constituentsAt(lat, lon, tiles);
+        if (!c || !c.amps || Object.keys(c.amps).length === 0) return null;
+        const amps = {};
+        for (const name in c.amps) amps[name] = c.amps[name] / 100;  // cm → m
+        const phases = c.phases;
+        const ext = eotFindExtremes(amps, phases, startMs, endMs);
+        if (!ext) return null;
+        // Sehr kleine Amplitude (Land/See ohne Gezeiten): alle Extreme fast
+        // gleich → kein unterscheidbares Gezeitenmuster → null.
+        let lo = Infinity, hi = -Infinity;
+        for (const e of ext) { if (e.level < lo) lo = e.level; if (e.level > hi) hi = e.level; }
+        if (hi - lo < (opts.minSpread ?? 0.03)) return null;
+        const fmtTime = opts.formatTime || (ts => new Date(ts).toISOString().slice(11, 16));
+        const fmtDate = opts.formatDate || (ts => new Date(ts).toLocaleDateString(opts.dateLocale || 'de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }));
+        return ext.map(e => ({
+            timestamp: e.timestamp,
+            high: e.high,
+            level: e.level,
+            timeText: fmtTime(e.timestamp),
+            timeTextDate: fmtDate(e.timestamp)
+        }));
+    } catch (err) {
+        console.warn('EOT20: Gezeiten-Vorhersage fehlgeschlagen für', lat, lon, err);
+        return null;
+    }
 }
 
 // Test-/Dev-Hilfe: gesamten In-Memory-Zustand zurücksetzen (DB bleibt).
