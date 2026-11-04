@@ -145,6 +145,9 @@ function applyTranslations() {
         footerPs[1].innerHTML = t('footerMap');
         footerPs[2].innerHTML = t('footerWeather');
     }
+    if (footerPs.length >= 4) {
+        footerPs[3].innerHTML = t('footerTide');
+    }
 
     // Re-render dynamic content (forecast table, sailing advice, wind display)
     // with the new language. script.js listens for this event and re-renders

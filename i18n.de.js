@@ -74,6 +74,7 @@ const deTranslations = {
     footerLicense: 'Lizenz: Beerware — Wenn dir diese App gefällt, spendiere mir einen Kaffee: <a href="https://ko-fi.com/florian500" target="_blank" rel="noopener">https://ko-fi.com/florian500</a>',
     footerMap: 'Kartenkacheln & Daten: OpenStreetMap contributors — <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">ODbL</a>. Kartenanzeige mit <a href="https://leafletjs.com/" target="_blank" rel="noopener">Leaflet</a> (BSD-2-Clause).',
     footerWeather: 'Wetterdaten: Open-Meteo.com – <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>; <a href="https://open-meteo.com/en/terms" target="_blank" rel="noopener">Nutzungsbedingungen</a>',
+    footerTide: 'Gezeiten: <a href="https://www.dgfi.tum.de/en/science-data-products/eot/" target="_blank" rel="noopener">EOT20</a> (DGFI/TUM, <a href="https://doi.org/10.17882/79489" target="_blank" rel="noopener">10.17882/79489</a>). Zitation: Hart-Davis M., Piccioni G., Dettmering D., Schwatke C., Passaro M., Seitz F.: EOT20: a global ocean tide model from multi-mission satellite altimetry. <em>Earth System Science Data</em>, 13, 3869–3884, <a href="https://doi.org/10.5194/essd-13-3869-2021" target="_blank" rel="noopener">doi:10.5194/essd-13-3869-2021</a>, 2021.',
 
     // Console warnings
     consoleCannotSaveLocation: 'Kann letzte Position nicht speichern.',

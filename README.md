@@ -41,8 +41,10 @@ python3 -m http.server 8080
 
 Beerware – wenn dir die App gefällt, spendiere dem Autor einen Kaffee: [ko-fi.com/florian500](https://ko-fi.com/florian500)
 
-## Datenquellen & Drittelizenzen
+## Datenquellen & Drittlizenzen
 
 - Kartenkacheln: [OpenStreetMap contributors](https://www.openstreetmap.org/copyright) – ODbL
 - Kartenanzeige: [Leaflet](https://leafletjs.com/) – BSD-2-Clause
 - Wetterdaten: [Open-Meteo](https://open-meteo.com) – siehe Nutzungsbedingungen auf der Webseite
+- Gezeitendaten: [EOT20](https://www.dgfi.tum.de/en/science-data-products/eot/) – globales Gezeitenmodell von [DGFI/TUM](https://www.dgfi.tum.de/), Gittermodell [10.17882/79489](https://doi.org/10.17882/79489). Beim Verwenden der Daten wird die Zitation des Open-Access-Artikels verlangt:
+  > Hart-Davis M., Piccioni G., Dettmering D., Schwatke C., Passaro M., Seitz F.: EOT20: a global ocean tide model from multi-mission satellite altimetry. *Earth System Science Data*, 13, 3869–3884, [doi:10.5194/essd-13-3869-2021](https://doi.org/10.5194/essd-13-3869-2021), 2021.
