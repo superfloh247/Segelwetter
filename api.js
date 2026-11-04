@@ -200,6 +200,34 @@ async function loadWeatherForCoords(lat, lng, locationName = null) {
                 return null;
             })
         ]);
+        // EOT20: Hoch-/Niedrigwasser über das gesamte Prognosefenster berechnen.
+        // Fehler (Land, keine Gezeiten, Lade-Ausfall) -> leer, UI versteckt die
+        // Tide-Zeile dann automatisch. Nicht blockierend für die Wetter-UI.
+        let tideExtremes = [];
+        if (typeof predictTideExtremes === 'function') {
+            const zone = data.timezone;
+            const tideLocale = t('dateLocale');
+            let fmtTime = ts => new Date(ts).toISOString().slice(11, 16);
+            let fmtDate = ts => new Date(ts).toLocaleDateString(tideLocale, { weekday: 'short', day: '2-digit', month: '2-digit' });
+            try {
+                const fmt = new Intl.DateTimeFormat(tideLocale, { timeZone: zone, hour: '2-digit', minute: '2-digit', hour12: false });
+                fmtTime = ts => fmt.format(new Date(ts));
+            } catch (error) { /* unbekannter Zonenname -> UTC-Fallback */ }
+            try {
+                const fmtD = new Intl.DateTimeFormat(tideLocale, { timeZone: zone, weekday: 'short', day: '2-digit', month: '2-digit' });
+                fmtDate = ts => fmtD.format(new Date(ts));
+            } catch (error) { /* unbekannter Zonenname -> lokaler Fallback */ }
+            try {
+                tideExtremes = (await predictTideExtremes(lat, lng,
+                    Date.now(),
+                    Date.now() + FORECAST_HOURS * 3600000,
+                    { formatTime: fmtTime, formatDate: fmtDate }
+                )) || [];
+            } catch (error) {
+                console.warn('EOT20: Gezeiten-Extrema nicht berechnet', error);
+            }
+        }
+        weatherData.tideExtremes = tideExtremes;
         const current = data.current_weather || {};
         weatherData.temperature = Number(current.temperature ?? (data.hourly?.temperature_2m?.[0] ?? 0));
         weatherData.wind.speed = Number(current.windspeed ?? (data.hourly?.windspeed_10m?.[0] ?? 0));

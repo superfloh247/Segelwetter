@@ -581,8 +581,11 @@ async function predictTideExtremes(lat, lon, startMs, endMs, opts) {
         let lo = Infinity, hi = -Infinity;
         for (const e of ext) { if (e.level < lo) lo = e.level; if (e.level > hi) hi = e.level; }
         if (hi - lo < (opts.minSpread ?? 0.03)) return null;
-        const fmtTime = opts.formatTime || (ts => new Date(ts).toISOString().slice(11, 16));
-        const fmtDate = opts.formatDate || (ts => new Date(ts).toLocaleDateString(opts.dateLocale || 'de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }));
+        // Anzeige-Formatierer liefert der Aufrufer (api.js) mit, damit Uhrzeit/
+        // Datum in der lokalen Zeitzone des Ortes und der App-Sprache gerendert
+        // werden. Standard: leer (nur Timestamp/level sind informativ).
+        const fmtTime = opts.formatTime || (() => '');
+        const fmtDate = opts.formatDate || (() => '');
         return ext.map(e => ({
             timestamp: e.timestamp,
             high: e.high,

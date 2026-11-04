@@ -99,7 +99,8 @@ function makeFetchEnvironment() {
 
 const EXPORTED_FUNCTIONS = [
     'ensureIndex', 'loadTile', 'loadTilesForLocation', 'discoverTileRecords',
-    'constituentsAt', 'preloadTideTiles', 'decodeTile', 'normalizeEotLon', 'resetEOT'
+    'constituentsAt', 'preloadTideTiles', 'decodeTile', 'normalizeEotLon', 'resetEOT',
+    'eotElevationMs', 'predictTideExtremes'
 ];
 
 function loadModule(env) {
@@ -417,6 +418,84 @@ const CUXHAVEN = { lat: 53.375, lon: 8.5 };       // nächster Wasser-Gitterpunk
         const tile = await mod.loadTile(rec);
         assert.ok(tile.nLat > 0);
         assert.strictEqual(fetchEnv.log.tileUrls.size, 1);
+    });
+
+    // 15) EOT-007: Vorhersage gegen pyTMD-Referenz (FES-Korrekturen) validiert.
+    //     Referenz tmp/eot007-ref.json wurde mit pyTMD (corrections='FES') erzeugt.
+    //     h = Gesamthöhe (m), G/u in Grad, f dimensionslos. G/u auf [-180,180] gewickelt.
+    await test('EOT-007: Höhe + G/u/f matchen pyTMD-Referenz (h<1mm, G/u<1°, f<1e-4)', async () => {
+        const refPath = path.join(ROOT, 'tmp', 'eot007-ref.json');
+        if (!fs.existsSync(refPath)) {
+            console.log('      (Referenz fehlt – Test übersprungen)');
+            return;
+        }
+        const fetchEnv = makeFetchEnvironment();
+        const mod = loadModule({ indexedDB: null, fetch: fetchEnv.fetch });
+        await mod.ensureIndex();
+        // Referenz-Fliesenpunkt (53.875, 8.75) – identisch zur pyTMD-Erzeugung
+        const REF_POINT = { lat: 53.875, lon: 8.75 };
+        const tiles = await mod.loadTilesForLocation(REF_POINT.lat, REF_POINT.lon);
+        const cons = mod.constituentsAt(REF_POINT.lat, REF_POINT.lon, tiles);
+        assert.ok(cons && Number.isFinite(cons.amps.M2), 'Referenz-Wasserpunkt verfügbar');
+        const amps = {};
+        for (const name in cons.amps) amps[name] = cons.amps[name] / 100; // cm -> m
+        const phases = cons.phases;
+
+        const ref = JSON.parse(fs.readFileSync(refPath, 'utf8'));
+        const mjd0 = ref.mjd0, dmjd = ref.dmjd, N = ref.n;
+        const idx = await mod.ensureIndex();
+        const consNames = idx.constituents;            // Referenz-Ordnung = Index-Ordnung
+        const wrapDeg = d => ((d % 360) + 540) % 360 - 180;
+
+        let hMax = 0;
+        for (let it = 0; it < N; it++) {
+            const ms = (mjd0 + it * dmjd - 40587) * 86400000;
+            hMax = Math.max(hMax, Math.abs(mod.eotElevationMs(ms, amps, phases) - ref.h[it]));
+        }
+        assert.ok(hMax < 0.001, `h max err ${hMax.toExponential(3)} m < 1 mm`);
+
+        const times = [0, 10, 100, 200, 400, 719];
+        let gMax = 0, uMax = 0, fMax = 0;
+        for (const it of times) {
+            const ms = (mjd0 + it * dmjd - 40587) * 86400000;
+            const args = vm.runInContext('eotArgsMs', mod.sandbox)(ms);
+            for (let c = 0; c < ref.G[it].length; c++) {
+                const name = consNames[c];
+                const a = args[name];
+                gMax = Math.max(gMax, Math.abs(wrapDeg(a.G) - wrapDeg(ref.G[it][c])));
+                uMax = Math.max(uMax, Math.abs(wrapDeg(a.u * 180 / Math.PI) - wrapDeg(ref.u[it][c])));
+                fMax = Math.max(fMax, Math.abs(a.f - ref.f[it][c]));
+            }
+        }
+        assert.ok(gMax < 1, `G max err ${gMax.toFixed(5)}° < 1°`);
+        assert.ok(uMax < 1, `u max err ${uMax.toFixed(5)}° < 1°`);
+        assert.ok(fMax < 1e-4, `f max err ${fMax.toExponential(3)} < 1e-4`);
+        console.log(`      (h err ${hMax.toExponential(2)} m, G ${gMax.toFixed(5)}°, u ${uMax.toFixed(5)}°, f ${fMax.toExponential(2)})`);
+    });
+
+    // 16) predictTideExtremes: liefert geordnete HW/NW-Liste mit Plausibilität.
+    await test('predictTideExtremes: HW/NW-Extreme mit plausiblen Werten', async () => {
+        const fetchEnv = makeFetchEnvironment();
+        const mod = loadModule({ indexedDB: null, fetch: fetchEnv.fetch });
+        await mod.ensureIndex();
+        const startMs = Date.now();
+        const endMs = startMs + 24 * 3600000;
+        const extremes = await mod.predictTideExtremes(CUXHAVEN.lat, CUXHAVEN.lon, startMs, endMs,
+            { formatTime: ts => '12:00', formatDate: ts => 'Mo 01.11.' });
+        assert.ok(Array.isArray(extremes) && extremes.length >= 3, `min. 3 Extreme in 24 h (hatte ${extremes && extremes.length})`);
+        for (const e of extremes) {
+            assert.ok(Number.isFinite(e.timestamp) && e.timestamp >= startMs && e.timestamp <= endMs, 'Timestamp im Fenster');
+            assert.ok(typeof e.high === 'boolean', 'high ist boolean');
+            assert.ok(Number.isFinite(e.level), 'level ist Zahl');
+            assert.strictEqual(e.timeText, '12:00', 'timeText gerendert');
+            assert.strictEqual(e.timeTextDate, 'Mo 01.11.', 'timeTextDate gerendert');
+        }
+        for (let k = 1; k < extremes.length; k++) {
+            assert.notStrictEqual(extremes[k].high, extremes[k - 1].high, 'HW/NW wechseln sich ab');
+        }
+        const levels = extremes.map(e => e.level);
+        const spread = Math.max(...levels) - Math.min(...levels);
+        assert.ok(spread > 0.5, `Gezeitenhub > 0,5 m (hatte ${spread.toFixed(2)} m)`);
     });
 
     // ---------- Ergebnis ----------
