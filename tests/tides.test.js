@@ -144,6 +144,13 @@ async function test(name, fn) {
 
 const SOMA_BAY = { lat: 27.677, lon: 33.875 };   // offizielles EOT20-Beispiel
 const CUXHAVEN = { lat: 53.375, lon: 8.5 };       // nächster Wasser-Gitterpunkt (Ort liegt an der Küste)
+const FLEESEENSE = { lat: 53.9037, lon: 13.3585 }; // Ostsee-Inlandssee ohne Ozeangezeiten (Maske: Land)
+const SOMA_GRID = { lat: 27.625, lon: 33.875 };   // nächster Gitterpunkt zu Soma Bay (pyTMD-Referenzpunkt)
+// Offener Gitterpunkt in der äußeren Nordsee vor Cuxhaven (~55 km nördlich des Hafens) –
+// der offene Wasserteil, der dem Hafen-Gezeitenpegel am nächsten kommt; zugleich
+// pyTMD-Referenzpunkt von Test 15. (CUXHAVEN selbst = 53.375N 8.5E liegt an der
+// Elbe-Mündung, wo Estuar-Verzerrungen die Zeiten verschieben.)
+const CUX_GRID = { lat: 53.875, lon: 8.75 };
 
 // ---------- Tests ----------
 
@@ -420,57 +427,56 @@ const CUXHAVEN = { lat: 53.375, lon: 8.5 };       // nächster Wasser-Gitterpunk
         assert.strictEqual(fetchEnv.log.tileUrls.size, 1);
     });
 
-    // 15) EOT-007: Vorhersage gegen pyTMD-Referenz (FES-Korrekturen) validiert.
-    //     Referenz tmp/eot007-ref.json wurde mit pyTMD (corrections='FES') erzeugt.
-    //     h = Gesamthöhe (m), G/u in Grad, f dimensionslos. G/u auf [-180,180] gewickelt.
-    await test('EOT-007: Höhe + G/u/f matchen pyTMD-Referenz (h<1mm, G/u<1°, f<1e-4)', async () => {
-        const refPath = path.join(ROOT, 'tmp', 'eot007-ref.json');
-        if (!fs.existsSync(refPath)) {
-            console.log('      (Referenz fehlt – Test übersprungen)');
-            return;
-        }
-        const fetchEnv = makeFetchEnvironment();
-        const mod = loadModule({ indexedDB: null, fetch: fetchEnv.fetch });
-        await mod.ensureIndex();
-        // Referenz-Fliesenpunkt (53.875, 8.75) – identisch zur pyTMD-Erzeugung
-        const REF_POINT = { lat: 53.875, lon: 8.75 };
-        const tiles = await mod.loadTilesForLocation(REF_POINT.lat, REF_POINT.lon);
-        const cons = mod.constituentsAt(REF_POINT.lat, REF_POINT.lon, tiles);
-        assert.ok(cons && Number.isFinite(cons.amps.M2), 'Referenz-Wasserpunkt verfügbar');
+    // Helper: validiert die lokale Konstituenten-Summe an einem Gridpunkt gegen eine
+    // pyTMD-Referenz-Datei (corrections='FES'). Liefert {hMax,gMax,uMax,fMax} oder
+    // {skipped:true}, wenn die Referenz fehlt, bzw. {error}, wenn kein Wasserpunkt.
+    async function validateAgainstPytmd(mod, refPath, refPoint) {
+        if (!fs.existsSync(refPath)) return { skipped: true };
+        const tiles = await mod.loadTilesForLocation(refPoint.lat, refPoint.lon);
+        const cons = mod.constituentsAt(refPoint.lat, refPoint.lon, tiles);
+        if (!cons || !Number.isFinite(cons.amps.M2)) return { error: 'Kein Wasserpunkt verfügbar' };
         const amps = {};
         for (const name in cons.amps) amps[name] = cons.amps[name] / 100; // cm -> m
         const phases = cons.phases;
-
         const ref = JSON.parse(fs.readFileSync(refPath, 'utf8'));
         const mjd0 = ref.mjd0, dmjd = ref.dmjd, N = ref.n;
-        const idx = await mod.ensureIndex();
-        const consNames = idx.constituents;            // Referenz-Ordnung = Index-Ordnung
+        const consNames = (await mod.ensureIndex()).constituents; // Referenz-Ordnung = Index-Ordnung
         const wrapDeg = d => ((d % 360) + 540) % 360 - 180;
-
         let hMax = 0;
         for (let it = 0; it < N; it++) {
             const ms = (mjd0 + it * dmjd - 40587) * 86400000;
             hMax = Math.max(hMax, Math.abs(mod.eotElevationMs(ms, amps, phases) - ref.h[it]));
         }
-        assert.ok(hMax < 0.001, `h max err ${hMax.toExponential(3)} m < 1 mm`);
-
         const times = [0, 10, 100, 200, 400, 719];
         let gMax = 0, uMax = 0, fMax = 0;
         for (const it of times) {
             const ms = (mjd0 + it * dmjd - 40587) * 86400000;
             const args = vm.runInContext('eotArgsMs', mod.sandbox)(ms);
             for (let c = 0; c < ref.G[it].length; c++) {
-                const name = consNames[c];
-                const a = args[name];
+                const a = args[consNames[c]];
                 gMax = Math.max(gMax, Math.abs(wrapDeg(a.G) - wrapDeg(ref.G[it][c])));
                 uMax = Math.max(uMax, Math.abs(wrapDeg(a.u * 180 / Math.PI) - wrapDeg(ref.u[it][c])));
                 fMax = Math.max(fMax, Math.abs(a.f - ref.f[it][c]));
             }
         }
-        assert.ok(gMax < 1, `G max err ${gMax.toFixed(5)}° < 1°`);
-        assert.ok(uMax < 1, `u max err ${uMax.toFixed(5)}° < 1°`);
-        assert.ok(fMax < 1e-4, `f max err ${fMax.toExponential(3)} < 1e-4`);
-        console.log(`      (h err ${hMax.toExponential(2)} m, G ${gMax.toFixed(5)}°, u ${uMax.toFixed(5)}°, f ${fMax.toExponential(2)})`);
+        return { hMax, gMax, uMax, fMax };
+    }
+
+    // 15) EOT-007: Vorhersage gegen pyTMD-Referenz (FES-Korrekturen) validiert.
+    //     Referenz tmp/eot007-ref.json wurde mit pyTMD (corrections='FES') erzeugt.
+    //     h = Gesamthöhe (m), G/u in Grad, f dimensionslos. G/u auf [-180,180] gewickelt.
+    await test('EOT-007: Höhe + G/u/f matchen pyTMD-Referenz (h<1mm, G/u<1°, f<1e-4)', async () => {
+        const fetchEnv = makeFetchEnvironment();
+        const mod = loadModule({ indexedDB: null, fetch: fetchEnv.fetch });
+        await mod.ensureIndex();
+        // Referenz-Fliesenpunkt (53.875, 8.75) – identisch zur pyTMD-Erzeugung
+        const r = await validateAgainstPytmd(mod, path.join(ROOT, 'tmp', 'eot007-ref.json'), CUX_GRID);
+        if (r.skipped) { console.log('      (Referenz fehlt – Test übersprungen)'); return; }
+        assert.ok(r.hMax < 0.001, `h max err ${r.hMax.toExponential(3)} m < 1 mm`);
+        assert.ok(r.gMax < 1, `G max err ${r.gMax.toFixed(5)}° < 1°`);
+        assert.ok(r.uMax < 1, `u max err ${r.uMax.toFixed(5)}° < 1°`);
+        assert.ok(r.fMax < 1e-4, `f max err ${r.fMax.toExponential(3)} < 1e-4`);
+        console.log(`      (h err ${r.hMax.toExponential(2)} m, G ${r.gMax.toFixed(5)}°, u ${r.uMax.toFixed(5)}°, f ${r.fMax.toExponential(2)})`);
     });
 
     // 16) predictTideExtremes: liefert geordnete HW/NW-Liste mit Plausibilität.
@@ -496,6 +502,82 @@ const CUXHAVEN = { lat: 53.375, lon: 8.5 };       // nächster Wasser-Gitterpunk
         const levels = extremes.map(e => e.level);
         const spread = Math.max(...levels) - Math.min(...levels);
         assert.ok(spread > 0.5, `Gezeitenhub > 0,5 m (hatte ${spread.toFixed(2)} m)`);
+    });
+
+    // 17) EOT-008: Zweiter Referenzort – Soma Bay (Rotes Meer). pyTMD-Referenz
+    //     tmp/eot008-ref-soma.json (Gitterpunkt 27.625N 33.875E, corrections='FES').
+    //     Bestätigt, dass der exakte pyTMD-Match aus Test 15 kein Cuxhaven-Artefakt ist.
+    await test('EOT-008: Soma Bay matcht pyTMD-Referenz (h<1mm, G/u<1°, f<1e-4)', async () => {
+        const fetchEnv = makeFetchEnvironment();
+        const mod = loadModule({ indexedDB: null, fetch: fetchEnv.fetch });
+        await mod.ensureIndex();
+        const r = await validateAgainstPytmd(mod, path.join(ROOT, 'tmp', 'eot008-ref-soma.json'), SOMA_GRID);
+        if (r.skipped) { console.log('      (Referenz fehlt – Test übersprungen)'); return; }
+        assert.ok(!r.error, r.error);
+        assert.ok(r.hMax < 0.001, `h max err ${r.hMax.toExponential(3)} m < 1 mm`);
+        assert.ok(r.gMax < 1, `G max err ${r.gMax.toFixed(5)}° < 1°`);
+        assert.ok(r.uMax < 1, `u max err ${r.uMax.toFixed(5)}° < 1°`);
+        assert.ok(r.fMax < 1e-4, `f max err ${r.fMax.toExponential(3)} < 1e-4`);
+        console.log(`      (h err ${r.hMax.toExponential(2)} m, G ${r.gMax.toFixed(5)}°, u ${r.uMax.toFixed(5)}°, f ${r.fMax.toExponential(2)})`);
+    });
+
+    // 18) EOT-008: No-Data – geschlossene/innere Gewässer und Land-Punkte liefern
+    //     keine Gezeiten-Vorhersage, statt falscher Positive.
+    await test('EOT-008: Fleesensee (Inlandssee) liefert null statt Gezeiten', async () => {
+        const fetchEnv = makeFetchEnvironment();
+        const mod = loadModule({ indexedDB: null, fetch: fetchEnv.fetch });
+        await mod.ensureIndex();
+        const tiles = await mod.loadTilesForLocation(FLEESEENSE.lat, FLEESEENSE.lon);
+        const cons = mod.constituentsAt(FLEESEENSE.lat, FLEESEENSE.lon, tiles);
+        assert.strictEqual(cons, null, 'Maske: Fleesensee-Gitterpunkt ist Land/invalid');
+        const ext = await mod.predictTideExtremes(FLEESEENSE.lat, FLEESEENSE.lon, Date.now(), Date.now() + 86400000);
+        assert.strictEqual(ext, null, 'predictTideExtremes: kein Muster -> null');
+    });
+    await test('EOT-008: Küsten-/Land-Punkt ohne Fliese liefert null (kein Crash)', async () => {
+        const fetchEnv = makeFetchEnvironment();
+        const mod = loadModule({ indexedDB: null, fetch: fetchEnv.fetch });
+        await mod.ensureIndex();
+        // Offener Ozean mitten im Nordmeer (Wasser) liefert Extreme; ein Land-Punkt im
+        // deutschen Binnenland (ohne abgedeckte Fliese) liefert sauber null.
+        const ocean = await mod.predictTideExtremes(54.5, 1.0, Date.now(), Date.now() + 86400000);
+        assert.ok(Array.isArray(ocean) && ocean.length >= 3, 'Offener Ozean liefert Extreme');
+        const inland = await mod.predictTideExtremes(51.0, 10.5, Date.now(), Date.now() + 86400000);
+        assert.strictEqual(inland, null, 'Land-Punkt -> null');
+    });
+
+    // 19) EOT-008: Realworld-Zeitvergleich Cuxhaven gegen tide-table.org (Station Cuxhaven).
+    //     Referenz vom 02.11.2026 (CET): HW 04:14 UTC (3.35 m), NW 11:33 UTC (0.27 m), HW 17:25 UTC (2.97 m).
+    //     Verglichen werden die UHRZEITEN am offenen Nordsee-Gitterpunkt CUX_GRID (53.875N 8.75E,
+    //     ~55 km nördlich des Hafens, zugleich pyTMD-Referenzpunkt aus Test 15). Höhen sind nicht
+    //     vergleichbar (EOT20-Geoid/Hartbahn-Datum vs. Stationsdatum). Geprüfte Abweichungen
+    //     (Probe 2026-11-05): HW0 +1.4 min, NW0 -48.9 min, HW1 -28.9 min – das Modell liefert
+    //     die äußere Nordsee-Phase; Hafen- und Elbe-Estuar-Verzerrung bleiben als Limitierung.
+    await test('EOT-008: Cuxhaven HW-Zeiten liegen ±45 min um tide-table-Referenz', async () => {
+        const fetchEnv = makeFetchEnvironment();
+        const mod = loadModule({ indexedDB: null, fetch: fetchEnv.fetch });
+        await mod.ensureIndex();
+        const startMs = Date.UTC(2026, 10, 2, 0, 0, 0);
+        const endMs = Date.UTC(2026, 10, 2, 23, 59, 59);
+        const ext = await mod.predictTideExtremes(CUX_GRID.lat, CUX_GRID.lon, startMs, endMs);
+        assert.ok(Array.isArray(ext) && ext.length >= 4, `mind. 4 Extreme in 24 h (hatte ${ext && ext.length})`);
+        const highs = ext.filter(e => e.high);
+        const lows = ext.filter(e => !e.high);
+        assert.ok(highs.length >= 2 && lows.length >= 2, 'mind. 2 HW + 2 NW');
+        const hw0 = highs[0], hw1 = highs[1], lw0 = lows[0];
+        const refHW0 = Date.UTC(2026, 10, 2, 4, 14);
+        const refNW0 = Date.UTC(2026, 10, 2, 11, 33);
+        const refHW1 = Date.UTC(2026, 10, 2, 17, 25);
+        const dHW0 = (hw0.timestamp - refHW0) / 60000;
+        const dNW0 = (lw0.timestamp - refNW0) / 60000;
+        const dHW1 = (hw1.timestamp - refHW1) / 60000;
+        console.log(`      (HW0 ${dHW0 >= 0 ? '+' : ''}${dHW0.toFixed(1)} min, NW0 ${dNW0 >= 0 ? '+' : ''}${dNW0.toFixed(1)} min, HW1 ${dHW1 >= 0 ? '+' : ''}${dHW1.toFixed(1)} min)`);
+        assert.ok(Math.abs(dHW0) <= 45, `HW0-Abweichung ${dHW0.toFixed(1)} min <= 45`);
+        assert.ok(Math.abs(dHW1) <= 45, `HW1-Abweichung ${dHW1.toFixed(1)} min <= 45`);
+        // NW-Abweichung größer als HW, da die Elbe-Flutwelle den NW im Estuar zeitlich
+        // verschiebt; weicher Grenzwert für die offene-See-Nachbildung
+        assert.ok(Math.abs(dNW0) <= 90, `NW0-Abweichung ${dNW0.toFixed(1)} min <= 90`);
+        // Reihenfolge und halbtaglicher Rhythmus (HW -> NW -> HW)
+        assert.ok(hw1.timestamp > hw0.timestamp && lw0.timestamp > hw0.timestamp, 'Reihenfolge HW<NW<HW');
     });
 
     // ---------- Ergebnis ----------

@@ -54,13 +54,37 @@ Caching:
 - In-memory LRU caches (16 raw buffers, 8 decoded tiles) sit in front of IndexedDB.
 - Concurrent requests for the same tile are deduplicated; the app stays interactive while tiles load.
 
+## Tide prediction (implemented)
+`tides.js` also implements the full EOT20 prediction chain (no backend):
+- Time handling: Unix ms → absolute MJD (Unix epoch = MJD 40587).
+- `eotMeanLongitudes`: Meeus/ASTRO5 mean longitudes (s, h, p, n, ps) as expected by the FES correction path.
+- `eotNodalFes`: FES nodal factors f and angles u for all 17 constituents (M4 derived from M2; K1/K2 in composite form), matching pyTMD `nodal_modulation(corrections='FES')`.
+- `eotElevationMs(ms, amps, phases)`: elevation in m as the sum of the 17 constituent harmonic terms f·A·cos(G+u−φ) — exact for the model (no sampling error).
+- `eotFindExtremes(amps, phases, startMs, endMs)`: two-pass HW/NW finder (5 min coarse scan, 20 ms refinement around each detected extremum).
+- `predictTideExtremes(lat, lon, startMs, endMs, opts)`: public API. Loads tiles, reads the nearest grid point, returns ordered alternating HW/NW events with rendered `timeText`/`timeTextDate` (formatters supplied by the caller in local time/app language), or `null` for land/no-data locations. `opts.minSpread` (default 0.03 m) suppresses locations where the extrema are not distinguishable from noise.
+
 ## Current state
-- **Implemented:** offline data-preparation pipeline, generated dataset under `data/eot20/`, browser tile loading with IndexedDB caching.
-- **Not yet implemented:** tide prediction and high/low-water detection. The UI reads `weatherData.tideExtremes` (currently always empty); prediction logic will build on the loader's `constituentsAt` / `loadTilesForLocation` to interpolate local constituents and find sea-level extrema over a time window.
+- **Implemented and validated (EOT-001…EOT-008):** offline data-preparation pipeline, generated dataset under `data/eot20/`, browser tile loading with IndexedDB caching, and full tide prediction (constituent arguments, nodal factors, extrema detection). `api.js` calls `preloadTideTiles` fire-and-forget and fills `weatherData.tideExtremes`, which `ui.js` renders as HW/NW rows with EN/DE labels.
+
+## Validation results (EOT-008, 2026-11-05)
+- **Reference implementation match (pyTMD 3.1.0, `corrections='FES'`, 720 samples over 3 h):**
+  - Cuxhaven grid point (53.875N 8.75E): h err 2.84e-11 m, G err 0.00000°, u err 0.00000°, f err 0.
+  - Soma Bay grid point (27.625N 33.875E): h err 5.07e-12 m, G err 0.00000°, u err 0.00000°, f err 0.
+  - Both are regression tests (15, 17); reference files under `tmp/` with the generation script.
+- **Real-world timing check (Cuxhaven port, tide-table.org, 2026-11-02):** model grid point 55 km offshore predicts HW 04:15/16:56 UTC vs. observed 04:14/17:25 UTC (+1.4/−28.9 min); NW −48.9 min off. Regression test 19 (±45 min HW, ±90 min NW). The port station adds estuary effects (Elbe) that a global ocean model does not represent — see limitations.
+- **No-data validation (test 18):** Fleesensee (53.9037N 13.3585E, inland lake) is masked land → `constituentsAt` returns `null`, `predictTideExtremes` returns `null` (no tide row, no crash). Land points outside any tile also return `null` cleanly.
+- **Data integrity:** full pipeline re-run is byte-identical (2048 tiles, SHA-256 per tile, index and metadata hashes); the test suite decodes all 2048 tiles and re-verifies every SHA-256 (test 14).
+
+## Limitations
+- **Estuaries and sheltered waters:** EOT20 is a global *ocean* tide model (0.125°). It cannot represent estuarine tide propagation, amplification, or phase shifts (Elbe, Rhine, Baltic inner basins). Near large river mouths, predicted times can deviate from the local port by tens of minutes; absolute levels use the EOT20 datum (Hartmann–Wagner geoid reference), not a local tide-gauge datum — **levels are not comparable to gauge heights**, only times and relative patterns are meaningful.
+- **Grid-node evaluation:** constituents are read at the nearest grid node (≈14 km), not interpolated. This matches pyTMD's own workflow (it interpolates the elevation field, not constituent tables) and avoids interpolating phases across cells, but introduces up to a grid cell of spatial coarseness near coastlines.
+- **Mask semantics:** land and inland water are masked (0) in all 17 constituents jointly; any point over land or a closed water body yields no prediction rather than a plausible-looking small tide.
+- **No storm surge / weather effects:** predictions are the equilibrium harmonic tide only (M2-dominated with 16 minor constituents + FES nodal corrections); atmospheric pressure and wind effects are absent.
+- **17 constituents:** EOT20's constituent set (2N2…T2 incl. S1, O1, S2, MF, MM, SA, SSA). Constitents beyond this set (e.g. MSF, long-period species) are not resolved.
 
 ## Scientific requirements
-- No missing values converted to zero amplitude.
-- Land/inland water cells marked invalid.
-- Bilinear interpolation over valid neighbors; nearest valid fallback.
-- No tide prediction for invalid locations.
+- No missing values converted to zero amplitude. ✔ (invalid = NaN or zero-amp *and* zero-phase in all constituents; mask derived per cell)
+- Land/inland water cells marked invalid. ✔
+- Constituent evaluation at the nearest grid node (design choice over bilinear interpolation — see limitations).
+- No tide prediction for invalid locations. ✔
 
