@@ -338,13 +338,26 @@ async function loadTilesForLocation(lat, lon) {
     return Promise.all(recs.map(rec => loadTile(rec)));
 }
 
+// Nächster Gitterpunkt einer dekodierten Fliese zu (lat, lon). Randwerte werden
+// geclampt, damit Punkte knapp außerhalb der Fliese (Nähe-Prinzip bei Fliesen-
+// grenzen) trotzdem auf den nächsten Gitterpunkt zeigen.
+function gridPointInTile(t, lat, lon) {
+    const clat = Math.max(-90, Math.min(90, lat));
+    const clon = normalizeEotLon(lon);
+    const latMax = t.lat0 + t.latStep * (t.nLat - 1);
+    const lonMax = t.lon0 + t.lonStep * (t.nLon - 1);
+    const i = Math.max(0, Math.min(t.nLat - 1, Math.round((clat - t.lat0) / t.latStep)));
+    const j = Math.max(0, Math.min(t.nLon - 1, Math.round((clon - t.lon0) / t.lonStep)));
+    return { i, j, idx: i * t.nLon + j, lat: t.lat0 + t.latStep * i, lon: t.lon0 + t.lonStep * j };
+}
+
 // Konstituenten-Amplituden/-Phasen am exakten Gitterpunkt.
 // Gibt null zurück, wenn der Punkt Land (Maske 0) oder ohne Fliesen ist.
 function constituentsAt(lat, lon, tiles) {
     if (!tiles || tiles.length === 0) return null;
-    const clat = Math.max(-90, Math.min(90, Number(lat)));
-    const clon = normalizeEotLon(lon);
     let tile = null;
+    const clat = Math.max(-90, Math.min(90, lat));
+    const clon = normalizeEotLon(lon);
     for (const t of tiles) {
         const latMax = t.lat0 + t.latStep * (t.nLat - 1);
         const lonMax = t.lon0 + t.lonStep * (t.nLon - 1);
@@ -355,9 +368,7 @@ function constituentsAt(lat, lon, tiles) {
         }
     }
     if (!tile) tile = tiles[0];
-    const i = Math.max(0, Math.min(tile.nLat - 1, Math.round((clat - tile.lat0) / tile.latStep)));
-    const j = Math.max(0, Math.min(tile.nLon - 1, Math.round((clon - tile.lon0) / tile.lonStep)));
-    const idx = i * tile.nLon + j;
+    const { idx } = gridPointInTile(tile, lat, lon);
     if (tile.mask[idx] === 0) return null;
     const amps = {};
     const phases = {};
@@ -367,6 +378,74 @@ function constituentsAt(lat, lon, tiles) {
         phases[name] = tile.phases[name][idx];
     }
     return { amps, phases, tile };
+}
+
+// ---------- Nachbarschafts-Fallback (Workaround für fehlende Gezeiten-Daten) ----------
+// Ohne Gezeiten-Daten am exakten Gitterpunkt, aber mit See im Umkreis (Wave-
+// Height vorhanden): die 8 umliegenden Gitterboxen (3x3-Kern um den
+// Center-Punkt) liefern ihre Werte; über alle gefundenen Wasser-Punkte werden
+// Amplitude und Phase (Winkel-Mittel über die Sinus-Komponente) gemittelt.
+
+// Die 8 Gitterpunkte im 3x3-Umfeld des nächsten Gitterpunkts zu (lat, lon).
+function surroundingGridPoints(lat, lon) {
+    const step = 0.025; // EOT20-Gitterabstand
+    const clat = Math.max(-90, Math.min(90, lat));
+    const clon = normalizeEotLon(lon);
+    const i = Math.max(0, Math.min(3600, Math.round((clat + 90) / step)));
+    const j = Math.max(0, Math.min(14400, Math.round(clon / step)));
+    const pts = [];
+    for (let di = -1; di <= 1; di++) {
+        for (let dj = -1; dj <= 1; dj++) {
+            if (di === 0 && dj === 0) continue;
+            const ni = i + di, nj = j + dj;
+            if (ni < 0 || ni > 3600 || nj < 0 || nj > 14400) continue; // Pol-/Datumsrand
+            pts.push({ lat: -90 + step * ni, lon: step * nj });
+        }
+    }
+    return pts;
+}
+
+// Konstituenten-Mittel über alle Wasser-Punkte (Maske 1) der Umgebungspunkte.
+// Gibt null zurück, wenn in der Nachbarschaft kein einziger Wasser-Punkt liegt
+// (dann bleibt die Vorhersage null – echtes Binnenland).
+function averagedConstituentsInNeighborhood(lat, lon, tiles) {
+    const sums = {};   // name -> { a, s, c, n }
+    let count = 0;
+    for (const p of surroundingGridPoints(lat, lon)) {
+        let tile = null;
+        for (const t of tiles) {
+            if (p.lat >= t.lat0 - 1e-9 && p.lat <= t.lat0 + t.latStep * (t.nLat - 1) + 1e-9 &&
+                p.lon >= t.lon0 - 1e-9 && p.lon <= t.lon0 + t.lonStep * (t.nLon - 1) + 1e-9) {
+                tile = t;
+                break;
+            }
+        }
+        if (!tile) continue;
+        const { idx } = gridPointInTile(tile, p.lat, p.lon);
+        if (tile.mask[idx] === 0) continue; // kein Gezeiten-Datensatz in dieser Box
+        count += 1;
+        const names = tile.amps ? Object.keys(tile.amps) : [];
+        for (const name of names) {
+            const a = tile.amps[name][idx];
+            const phi = tile.phases[name][idx] * EOT_D2R;
+            let s = sums[name];
+            if (!s) { s = { a: 0, s: 0, c: 0, n: 0 }; sums[name] = s; }
+            s.a += a;
+            s.s += a * Math.sin(phi);
+            s.c += a * Math.cos(phi);
+            s.n += 1;
+        }
+    }
+    if (count === 0) return null;
+    const amps = {};
+    const phases = {};
+    for (const name in sums) {
+        const s = sums[name];
+        amps[name] = s.a / s.n;
+        // Winkel-Mittel: arctan(Σ a·sinφ, Σ a·cosφ) – korrekt bei Phasen um 0°/360°
+        phases[name] = Math.atan2(s.s, s.c) / EOT_D2R;
+    }
+    return { amps, phases, count };
 }
 
 // Fire-and-forget-Vorladen für die aktuelle Position. Verschluckt eigene
@@ -564,13 +643,20 @@ function eotFindExtremes(amps, phases, startMs, endMs) {
 
 // Öffentliche Vorhersage: lädt Fliesen, liest die Konstituenten am exakten
 // Gitterpunkt, berechnet Hoch-/Niedrigwasser im Fenster [startMs, endMs].
-// Gibt null bei Land/keinen Daten (UI zeigt dann keine Gezeitenzeile).
+// Workaround: Fehlt Gezeiten-Daten am Gitterpunkt (Land-Maske), aber es liegt
+// Wasser in der Nachbarschaft (z. B. Inlandssee), so werden die 8 umliegenden
+// Gitterboxen gemittelt (s. averagedConstituentsInNeighborhood).
+// Gibt null bei echtem Land (keine Wasser-Nachbarschaft)/keinen Daten
+// (UI zeigt dann keine Gezeitenzeile).
 async function predictTideExtremes(lat, lon, startMs, endMs, opts) {
     opts = opts || {};
     try {
         const tiles = await loadTilesForLocation(lat, lon);
-        const c = constituentsAt(lat, lon, tiles);
-        if (!c || !c.amps || Object.keys(c.amps).length === 0) return null;
+        let c = constituentsAt(lat, lon, tiles);
+        if (!c || !c.amps || Object.keys(c.amps).length === 0) {
+            c = averagedConstituentsInNeighborhood(lat, lon, tiles);
+            if (!c) return null;
+        }
         const amps = {};
         for (const name in c.amps) amps[name] = c.amps[name] / 100;  // cm → m
         const phases = c.phases;

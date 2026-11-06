@@ -100,7 +100,8 @@ function makeFetchEnvironment() {
 const EXPORTED_FUNCTIONS = [
     'ensureIndex', 'loadTile', 'loadTilesForLocation', 'discoverTileRecords',
     'constituentsAt', 'preloadTideTiles', 'decodeTile', 'normalizeEotLon', 'resetEOT',
-    'eotElevationMs', 'predictTideExtremes'
+    'eotElevationMs', 'predictTideExtremes',
+    'surroundingGridPoints', 'averagedConstituentsInNeighborhood'
 ];
 
 function loadModule(env) {
@@ -521,17 +522,58 @@ const CUX_GRID = { lat: 53.875, lon: 8.75 };
         console.log(`      (h err ${r.hMax.toExponential(2)} m, G ${r.gMax.toFixed(5)}°, u ${r.uMax.toFixed(5)}°, f ${r.fMax.toExponential(2)})`);
     });
 
-    // 18) EOT-008: No-Data – geschlossene/innere Gewässer und Land-Punkte liefern
-    //     keine Gezeiten-Vorhersage, statt falscher Positive.
-    await test('EOT-008: Fleesensee (Inlandssee) liefert null statt Gezeiten', async () => {
+    // 18) EOT-008: Fleesensee – Gitterpunkt ohne Gezeiten (Maske 0), aber Wasser
+    //     in der Nachbarschaft. Workaround: die 8 umliegenden Gitterboxen werden
+    //     gemittelt, die Vorhersage liefert daher Extreme statt null.
+    await test('EOT-008: Fleesensee (Inlandssee) liefert Gezeiten via Nachbar-Mittel', async () => {
         const fetchEnv = makeFetchEnvironment();
         const mod = loadModule({ indexedDB: null, fetch: fetchEnv.fetch });
         await mod.ensureIndex();
         const tiles = await mod.loadTilesForLocation(FLEESEENSE.lat, FLEESEENSE.lon);
         const cons = mod.constituentsAt(FLEESEENSE.lat, FLEESEENSE.lon, tiles);
-        assert.strictEqual(cons, null, 'Maske: Fleesensee-Gitterpunkt ist Land/invalid');
+        assert.strictEqual(cons, null, 'Maske: Fleesensee-Gitterpunkt selbst ist Land/invalid');
+        // Der Fallback sammelt die 8 umliegenden Wasser-Gitterboxen und mittelt.
+        const avg = mod.averagedConstituentsInNeighborhood(FLEESEENSE.lat, FLEESEENSE.lon, tiles);
+        assert.ok(avg, 'Nachbarschaft liefert Wasser-Punkte');
+        assert.ok(avg.count >= 1, `mind. 1 Wasser-Punkt (hatte ${avg && avg.count})`);
+        assert.ok(Number.isFinite(avg.amps.M2) && avg.amps.M2 > 0, 'M2-Amplitude plausibel');
         const ext = await mod.predictTideExtremes(FLEESEENSE.lat, FLEESEENSE.lon, Date.now(), Date.now() + 86400000);
-        assert.strictEqual(ext, null, 'predictTideExtremes: kein Muster -> null');
+        assert.ok(Array.isArray(ext) && ext.length >= 3, `Nachbar-Mittel liefert Extreme (hatte ${ext && ext.length})`);
+    });
+    // 18b) Nachbar-Fallback – echtes Binnenland (keine Wasser-Nachbarschaft)
+    //      bleibt null; offene Küstenpunkte liefern unverändert echte Daten.
+    await test('EOT-008: Binnenland liefert null, Wasser-Punkt nutzt keine Nachbarschaft', async () => {
+        const fetchEnv = makeFetchEnvironment();
+        const mod = loadModule({ indexedDB: null, fetch: fetchEnv.fetch });
+        await mod.ensureIndex();
+        // Offener Ozean mitten im Nordmeer (Wasser) liefert Extreme; ein Land-Punkt im
+        // deutschen Binnenland (ohne Wasser-Nachbarschaft) liefert sauber null.
+        const ocean = await mod.predictTideExtremes(54.5, 1.0, Date.now(), Date.now() + 86400000);
+        assert.ok(Array.isArray(ocean) && ocean.length >= 3, 'Offener Ozean liefert Extreme');
+        const inland = await mod.predictTideExtremes(51.0, 10.5, Date.now(), Date.now() + 86400000);
+        assert.strictEqual(inland, null, 'Binnenland -> null');
+    });
+    // 18c) surroundingGridPoints: 8 Punkte, Center ausgeschlossen, Ränder sauber.
+    await test('surroundingGridPoints liefert 8 Punkte ohne Center und respektiert Ränder', async () => {
+        const fetchEnv = makeFetchEnvironment();
+        const mod = loadModule({ indexedDB: null, fetch: fetchEnv.fetch });
+        await mod.ensureIndex();
+        const pts = mod.surroundingGridPoints(53.9, 13.35);
+        assert.strictEqual(pts.length, 8, 'genau 8 Umgebungs-Punkte');
+        const step = 0.025;
+        const ic = Math.round((53.9 + 90) / step);
+        const jc = Math.round(13.35 / step);
+        let centerSeen = false;
+        for (const p of pts) {
+            const pi = Math.round((p.lat + 90) / step);
+            const pj = Math.round(p.lon / step);
+            if (pi === ic && pj === jc) centerSeen = true;
+            assert.ok(Math.abs(pi - ic) <= 1 && Math.abs(pj - jc) <= 1, 'Punkt liegt im 3x3-Umfeld');
+        }
+        assert.ok(!centerSeen, 'Center-Punkt ist ausgeschlossen');
+        // Polrand: bei 90°N gibt es keine Zeile darüber – weniger als 8 Punkte.
+        const polar = mod.surroundingGridPoints(89.99, 10);
+        assert.ok(polar.length < 8, 'Polrand liefert weniger Punkte');
     });
     await test('EOT-008: Küsten-/Land-Punkt ohne Fliese liefert null (kein Crash)', async () => {
         const fetchEnv = makeFetchEnvironment();
