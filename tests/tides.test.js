@@ -145,13 +145,39 @@ async function test(name, fn) {
 
 const SOMA_BAY = { lat: 27.677, lon: 33.875 };   // offizielles EOT20-Beispiel
 const CUXHAVEN = { lat: 53.375, lon: 8.5 };       // nächster Wasser-Gitterpunkt (Ort liegt an der Küste)
-const FLEESEENSE = { lat: 53.9037, lon: 13.3585 }; // Ostsee-Inlandssee ohne Ozeangezeiten (Maske: Land)
+const FLEESENSEE = { lat: 53.9037, lon: 13.3585 }; // Inlandssee (Mecklenburgische Seenplatte) ohne Ozeangezeiten (Maske: Land)
 const SOMA_GRID = { lat: 27.625, lon: 33.875 };   // nächster Gitterpunkt zu Soma Bay (pyTMD-Referenzpunkt)
 // Offener Gitterpunkt in der äußeren Nordsee vor Cuxhaven (~55 km nördlich des Hafens) –
 // der offene Wasserteil, der dem Hafen-Gezeitenpegel am nächsten kommt; zugleich
 // pyTMD-Referenzpunkt von Test 15. (CUXHAVEN selbst = 53.375N 8.5E liegt an der
 // Elbe-Mündung, wo Estuar-Verzerrungen die Zeiten verschieben.)
 const CUX_GRID = { lat: 53.875, lon: 8.75 };
+
+// GEO-001: Realwelt-Referenzpunkte mit erwartetem Wasser-Klass (LAND / MARINE)
+// und EOT20-Masken-Zustand am nächsten 0.125°-Gitterpunkt (Recon 2026-11-07,
+// data/eot20 Snapshot v1). mask 1 = direkter Wasser-Gitterpunkt; mask 0 mit
+// Wasser in der 3x3-Umgebung -> 8er-Nachbarschafts-Fallback (Esquinzo, Salzhaff);
+// mask 0 ohne Wasser in 3x3 -> reine Landklasse (beiden Seen).
+const GEO_POINTS = [
+    { id: 'MUEGGELSEE', lat: 52.443354, lon: 13.675345, klass: 'LAND',
+      desc: 'Müggelsee, Berlin – Binnensee, keine Wellenhöhe, keine Gezeiten',
+      mask: 0, waterIn3x3: 0 },
+    { id: 'FLEESENSEE', lat: 53.495414, lon: 12.494845, klass: 'LAND',
+      desc: 'Fleesensee, Mecklenburg – Binnensee, keine Wellenhöhe, keine Gezeiten',
+      mask: 0, waterIn3x3: 0 },
+    { id: 'SOMABAY', lat: 26.846495, lon: 33.984253, klass: 'MARINE',
+      desc: 'Soma Bay, Ägypten – Rotes Meer, Wellenhöhe und Gezeiten',
+      mask: 1, waterIn3x3: 6 },
+    { id: 'LAPARED', lat: 28.210940, lon: -14.228325, klass: 'MARINE',
+      desc: 'La Pared, Fuerteventura – Atlantik Küste, Wellenhöhe und Gezeiten',
+      mask: 1, waterIn3x3: 6 },
+    { id: 'ESQUINZO', lat: 28.073934, lon: -14.299414, klass: 'MARINE',
+      desc: 'Esquinzo Playa, Fuerteventura – ~140 m vor der Atlantik-Küste (Land, Küstenzone): Gezeiten per 8er-Fallback',
+      mask: 0, waterIn3x3: 7 },
+    { id: 'SALZHAFF', lat: 54.036086, lon: 11.574569, klass: 'MARINE',
+      desc: 'Salzhaff bei San Pepelone, Vorpommern – Ostsee-Bucht, Wellenhöhe und Gezeiten (per 8er-Fallback)',
+      mask: 0, waterIn3x3: 2 }
+];
 
 // ---------- Tests ----------
 
@@ -529,12 +555,12 @@ const CUX_GRID = { lat: 53.875, lon: 8.75 };
         const fetchEnv = makeFetchEnvironment();
         const mod = loadModule({ indexedDB: null, fetch: fetchEnv.fetch });
         await mod.ensureIndex();
-        const tiles = await mod.loadTilesForLocation(FLEESEENSE.lat, FLEESEENSE.lon);
-        const cons = mod.constituentsAt(FLEESEENSE.lat, FLEESEENSE.lon, tiles);
+        const tiles = await mod.loadTilesForLocation(FLEESENSEE.lat, FLEESENSEE.lon);
+        const cons = mod.constituentsAt(FLEESENSEE.lat, FLEESENSEE.lon, tiles);
         assert.strictEqual(cons, null, 'Maske: Fleesensee-Gitterpunkt ist Land/invalid');
-        const avg = mod.averagedConstituentsInNeighborhood(FLEESEENSE.lat, FLEESEENSE.lon, tiles);
+        const avg = mod.averagedConstituentsInNeighborhood(FLEESENSEE.lat, FLEESENSEE.lon, tiles);
         assert.strictEqual(avg, null, 'Nachbar-Mittel: 3x3-Umfeld komplett Land -> null');
-        const ext = await mod.predictTideExtremes(FLEESEENSE.lat, FLEESEENSE.lon, Date.now(), Date.now() + 86400000);
+        const ext = await mod.predictTideExtremes(FLEESENSEE.lat, FLEESENSEE.lon, Date.now(), Date.now() + 86400000);
         assert.strictEqual(ext, null, 'predictTideExtremes: kein Muster -> null');
     });
     // 18b) Nachbar-Mittel: Land-Gitterpunkt mit Wasser-Nachbarn (Küste) – das
@@ -629,6 +655,59 @@ const CUX_GRID = { lat: 53.875, lon: 8.75 };
         // Reihenfolge und halbtaglicher Rhythmus (HW -> NW -> HW)
         assert.ok(hw1.timestamp > hw0.timestamp && lw0.timestamp > hw0.timestamp, 'Reihenfolge HW<NW<HW');
     });
+
+    // GEO-001: Realwelt-Referenzpunkte – Wasser-Klasse (LAND/MARINE) über die
+    //     Gezeiten-Pipeline verifiziert. LAND-Punkte (Seen, ohne Ozean-Nachbarschaft
+    //     im 3x3-Umfeld) müssen null liefern; MARINE-Punkte müssen Extreme mit
+    //     plausibler Spreading liefern. Feste Referenz-Umfrage (kein Date.now()) →
+    //     deterministisch. Die Masken-Wasser-Werte (waterIn3x3) werden aus der
+    //     dekodierten Fliese erneut berechnet und mit dem in GEO_POINTS festgehaltenen
+    //     Recon-Wert abgeglichen – so wird die 8er-Fallback-Logik für Esquinzo/Salzhaff
+    //     (mask 0, aber Wasser in der Nachbarschaft) explizit abgesichert.
+    {
+        const fetchEnv = makeFetchEnvironment();
+        const mod = loadModule({ indexedDB: null, fetch: fetchEnv.fetch });
+        await mod.ensureIndex();
+        const startMs = Date.UTC(2026, 10, 2, 0, 0, 0);
+        const endMs = Date.UTC(2026, 10, 2, 23, 59, 59);
+        for (const p of GEO_POINTS) {
+            const label = p.id + ' (' + p.desc.split('–')[0].trim() + ')';
+            await test(`GEO-001 ${p.id}: ${p.klass} → ${p.klass === 'LAND' ? 'null' : 'Gezeiten'}`, async () => {
+                // 3x3-Masken-Wasserzählung aus der echten Fliese rekonstruieren
+                const tiles = await mod.loadTilesForLocation(p.lat, p.lon);
+                const step = 0.125;
+                const clat = Math.max(-90, Math.min(90, p.lat));
+                const clon = mod.normalizeEotLon(p.lon);
+                let water = 0;
+                let centerMask = null;
+                for (const t of tiles) {
+                    const latMax = t.lat0 + t.latStep * (t.nLat - 1);
+                    const lonMax = t.lon0 + t.lonStep * (t.nLon - 1);
+                    if (!(clat >= t.lat0 - 1e-9 && clat <= latMax + 1e-9 && clon >= t.lon0 - 1e-9 && clon <= lonMax + 1e-9)) continue;
+                    const ci = Math.max(0, Math.min(t.nLat - 1, Math.round((clat - t.lat0) / t.latStep)));
+                    const cj = Math.max(0, Math.min(t.nLon - 1, Math.round((clon - t.lon0) / t.lonStep)));
+                    centerMask = t.mask[ci * t.nLon + cj];
+                    for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) {
+                        const ri = ci + di, col = cj + dj;
+                        if (ri < 0 || ri >= t.nLat || col < 0 || col >= t.nLon) continue;
+                        if (t.mask[ri * t.nLon + col] === 1) water += 1;
+                    }
+                }
+                assert.strictEqual(centerMask, p.mask, `${label}: Zentrums-Maske ${centerMask} != erwartet ${p.mask}`);
+                assert.strictEqual(water, p.waterIn3x3, `${label}: Wasser in 3x3 ${water} != erwartet ${p.waterIn3x3}`);
+                // Gezeiten-Verhalten: LAND → null; MARINE → Extreme mit Spreading
+                const ext = await mod.predictTideExtremes(p.lat, p.lon, startMs, endMs);
+                if (p.klass === 'LAND') {
+                    assert.strictEqual(ext, null, `${label}: LAND-Punkt muss null liefern, hatte ${ext && ext.length} Extreme`);
+                } else {
+                    assert.ok(Array.isArray(ext) && ext.length >= 3, `${label}: MARINE-Punkt liefert Extreme, hatte ${ext && ext.length}`);
+                    let lo = Infinity, hi = -Infinity;
+                    for (const e of ext) { if (e.level < lo) lo = e.level; if (e.level > hi) hi = e.level; }
+                    assert.ok(hi - lo >= 0.03, `${label}: Gezeiten-Spreizung ${ (hi - lo).toFixed(3) } m >= 0.03 m`);
+                }
+            });
+        }
+    }
 
     // ---------- Ergebnis ----------
     console.log('\n' + passed + ' bestanden, ' + failures.length + ' fehlgeschlagen');
