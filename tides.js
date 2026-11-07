@@ -388,18 +388,18 @@ function constituentsAt(lat, lon, tiles) {
 
 // Die 8 Gitterpunkte im 3x3-Umfeld des nächsten Gitterpunkts zu (lat, lon).
 function surroundingGridPoints(lat, lon) {
-    const step = 0.025; // EOT20-Gitterabstand
+    const step = 0.125; // EOT20-Gitterabstand
     const clat = Math.max(-90, Math.min(90, lat));
     const clon = normalizeEotLon(lon);
-    const i = Math.max(0, Math.min(3600, Math.round((clat + 90) / step)));
-    const j = Math.max(0, Math.min(14400, Math.round(clon / step)));
+    const i = Math.max(0, Math.min(1440, Math.round((clat + 90) / step)));
+    const j = Math.max(0, Math.min(2880, Math.round(clon / step)));
     const pts = [];
     for (let di = -1; di <= 1; di++) {
         for (let dj = -1; dj <= 1; dj++) {
             if (di === 0 && dj === 0) continue;
             const ni = i + di, nj = j + dj;
-            if (ni < 0 || ni > 3600 || nj < 0 || nj > 14400) continue; // Pol-/Datumsrand
-            pts.push({ lat: -90 + step * ni, lon: step * nj });
+            if (ni < 0 || ni > 1440 || nj < 0 || nj > 2880) continue; // Pol-/Datumsrand
+            pts.push({ lat: -90 + step * ni, lon: (step * nj) % 360 });
         }
     }
     return pts;

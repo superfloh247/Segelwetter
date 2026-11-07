@@ -522,32 +522,40 @@ const CUX_GRID = { lat: 53.875, lon: 8.75 };
         console.log(`      (h err ${r.hMax.toExponential(2)} m, G ${r.gMax.toFixed(5)}°, u ${r.uMax.toFixed(5)}°, f ${r.fMax.toExponential(2)})`);
     });
 
-    // 18) EOT-008: Fleesensee – Gitterpunkt ohne Gezeiten (Maske 0), aber Wasser
-    //     in der Nachbarschaft. Workaround: die 8 umliegenden Gitterboxen werden
-    //     gemittelt, die Vorhersage liefert daher Extreme statt null.
-    await test('EOT-008: Fleesensee (Inlandssee) liefert Gezeiten via Nachbar-Mittel', async () => {
+    // 18) EOT-008: No-Data – Fleesensee (Inlandssee) hat keinen Gezeiten-Datensatz
+    //     am Gitterpunkt, und auch die 8 umliegenden Gitterboxen sind Land
+    //     (3x3-Kern ohne Wasser) -> Nachbar-Mittel liefert null, kein Crash.
+    await test('EOT-008: Fleesensee (Inlandssee) liefert null statt Gezeiten', async () => {
         const fetchEnv = makeFetchEnvironment();
         const mod = loadModule({ indexedDB: null, fetch: fetchEnv.fetch });
         await mod.ensureIndex();
         const tiles = await mod.loadTilesForLocation(FLEESEENSE.lat, FLEESEENSE.lon);
         const cons = mod.constituentsAt(FLEESEENSE.lat, FLEESEENSE.lon, tiles);
-        assert.strictEqual(cons, null, 'Maske: Fleesensee-Gitterpunkt selbst ist Land/invalid');
-        // Der Fallback sammelt die 8 umliegenden Wasser-Gitterboxen und mittelt.
+        assert.strictEqual(cons, null, 'Maske: Fleesensee-Gitterpunkt ist Land/invalid');
         const avg = mod.averagedConstituentsInNeighborhood(FLEESEENSE.lat, FLEESEENSE.lon, tiles);
-        assert.ok(avg, 'Nachbarschaft liefert Wasser-Punkte');
-        assert.ok(avg.count >= 1, `mind. 1 Wasser-Punkt (hatte ${avg && avg.count})`);
-        assert.ok(Number.isFinite(avg.amps.M2) && avg.amps.M2 > 0, 'M2-Amplitude plausibel');
+        assert.strictEqual(avg, null, 'Nachbar-Mittel: 3x3-Umfeld komplett Land -> null');
         const ext = await mod.predictTideExtremes(FLEESEENSE.lat, FLEESEENSE.lon, Date.now(), Date.now() + 86400000);
-        assert.ok(Array.isArray(ext) && ext.length >= 3, `Nachbar-Mittel liefert Extreme (hatte ${ext && ext.length})`);
+        assert.strictEqual(ext, null, 'predictTideExtremes: kein Muster -> null');
     });
-    // 18b) Nachbar-Fallback – echtes Binnenland (keine Wasser-Nachbarschaft)
-    //      bleibt null; offene Küstenpunkte liefern unverändert echte Daten.
-    await test('EOT-008: Binnenland liefert null, Wasser-Punkt nutzt keine Nachbarschaft', async () => {
+    // 18b) Nachbar-Mittel: Land-Gitterpunkt mit Wasser-Nachbarn (Küste) – das
+    //      Mittel über die 8 umliegenden Gitterboxen liefert Gezeiten-Daten.
+    //      Referenz: Küsten-Gitterpunkt 52.375N 5.25E (Land, 3 Wasser-Nachbarn,
+    //      im Tile 50..55N 5..10E). Binnenland 51.0N 10.5E bleibt null.
+    await test('Nachbar-Mittel: Küsten-Landpunkt mit Wasser-Nachbarn liefert Extreme, Binnenland null', async () => {
         const fetchEnv = makeFetchEnvironment();
         const mod = loadModule({ indexedDB: null, fetch: fetchEnv.fetch });
         await mod.ensureIndex();
-        // Offener Ozean mitten im Nordmeer (Wasser) liefert Extreme; ein Land-Punkt im
-        // deutschen Binnenland (ohne Wasser-Nachbarschaft) liefert sauber null.
+        const coast = { lat: 52.375, lon: 5.25 };
+        const tiles = await mod.loadTilesForLocation(coast.lat, coast.lon);
+        assert.strictEqual(mod.constituentsAt(coast.lat, coast.lon, tiles), null, 'Center-Punkt ist Land (Maske 0)');
+        const avg = mod.averagedConstituentsInNeighborhood(coast.lat, coast.lon, tiles);
+        assert.ok(avg, 'Nachbar-Mittel liefert Daten');
+        assert.ok(avg.count >= 1 && avg.count <= 8, `Wasser-Punkte im 3x3-Umfeld (hatte ${avg && avg.count})`);
+        assert.ok(Number.isFinite(avg.amps.M2) && avg.amps.M2 > 0, 'M2-Amplitude plausibel');
+        assert.ok(Object.keys(avg.amps).length === 17, 'alle 17 Konstituenten gemittelt');
+        const ext = await mod.predictTideExtremes(coast.lat, coast.lon, Date.now(), Date.now() + 86400000);
+        assert.ok(Array.isArray(ext) && ext.length >= 3, `Nachbar-Mittel liefert Extreme (hatte ${ext && ext.length})`);
+        // Offener Ozean (Wasser am Center) nutzt keine Nachbarschaft; Binnenland -> null.
         const ocean = await mod.predictTideExtremes(54.5, 1.0, Date.now(), Date.now() + 86400000);
         assert.ok(Array.isArray(ocean) && ocean.length >= 3, 'Offener Ozean liefert Extreme');
         const inland = await mod.predictTideExtremes(51.0, 10.5, Date.now(), Date.now() + 86400000);
@@ -560,7 +568,7 @@ const CUX_GRID = { lat: 53.875, lon: 8.75 };
         await mod.ensureIndex();
         const pts = mod.surroundingGridPoints(53.9, 13.35);
         assert.strictEqual(pts.length, 8, 'genau 8 Umgebungs-Punkte');
-        const step = 0.025;
+        const step = 0.125;
         const ic = Math.round((53.9 + 90) / step);
         const jc = Math.round(13.35 / step);
         let centerSeen = false;
