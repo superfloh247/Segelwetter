@@ -25,6 +25,7 @@ const deTranslations = {
     // Forecast table rows
     forecastBaseWind: 'Grundwind',
     forecastGusts: 'Böen',
+    forecastWeather: 'Wetter',
     forecastTemperature: 'Temperatur',
     forecastWindDirection: 'Windrichtung',
     forecastWaterTemp: 'Wassertemp.',

@@ -162,6 +162,9 @@ function displayHourlyForecast() {
         const knots = kmhToKnots(item.gusts);
         return { value: `${knots}`, className: gustSpeedClass(Number(knots)) };
     }));
+    appendMetricRow(t('forecastWeather'), forecast.map(item => ({
+        value: item.weatherIcon ?? ''
+    })));
     appendMetricRow(t('forecastTemperature'), forecast.map(item => ({ value: `${item.temp}${t('celsius')}` })));
     appendMetricRow(t('forecastWindDirection'), forecast.map(item => ({ value: item.direction })));
 

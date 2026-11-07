@@ -25,6 +25,7 @@ const enTranslations = {
     // Forecast table rows
     forecastBaseWind: 'Base wind',
     forecastGusts: 'Gusts',
+    forecastWeather: 'Weather',
     forecastTemperature: 'Temp.',
     forecastWindDirection: 'Wind dir.',
     forecastWaterTemp: 'Water temp.',

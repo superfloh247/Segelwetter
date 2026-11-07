@@ -1,5 +1,20 @@
 // Segelwetter – Open-Meteo API, response cache & data loading (split from script.js)
 
+// WMO-Wettercodes (Open-Meteo `weather_code`) → Unicode-Icons.
+// So viele unterschiedliche Icons wie möglich: Intensitätsstufen
+// (leicht/mittel/stark), Niesel- vs. Regen, Schnee vs. Schneegriesel,
+// Frostregen und Hagel erhalten eigene Icons bzw. Kombinationen.
+const WMO_WEATHER_ICONS = {
+    0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️',
+    45: '🌫️', 48: '🌁',
+    51: '💧', 53: '💦', 55: '🌦️', 56: '💧❄️', 57: '💦❄️',
+    61: '🌦️', 63: '🌧️', 65: '☔️', 66: '🌧️❄️', 67: '🧊',
+    71: '🌨️', 73: '❄️', 75: '❄️❄️', 77: '🌨️',
+    80: '🌦️', 81: '🌧️', 82: '☔️',
+    85: '🌨️', 86: '🌨️❄️',
+    95: '⛈️', 96: '⚡', 99: '🧊'
+};
+
 function buildHourlyForecastFromOpenMeteo(data, marineData) {
     const timeStrings = data.hourly?.time || [];
     const temperatures = data.hourly?.temperature_2m || [];
@@ -7,6 +22,7 @@ function buildHourlyForecastFromOpenMeteo(data, marineData) {
     const windDirections = data.hourly?.winddirection_10m || [];
     const windGusts = data.hourly?.windgusts_10m || [];
     const capes = data.hourly?.cape || [];
+    const weatherCodes = data.hourly?.weather_code || [];
     const waveHeights = marineData?.hourly?.wave_height;
     const seaSurfaceTemps = marineData?.hourly?.sea_surface_temperature;
 
@@ -63,12 +79,15 @@ function buildHourlyForecastFromOpenMeteo(data, marineData) {
         const capeVal = (capes && i < capes.length && capes[i] != null) ? Number(capes[i]) : null;
         const waveHeightVal = (waveHeights && i < waveHeights.length && waveHeights[i] != null) ? Number(waveHeights[i]) : null;
         const seaSurfaceVal = (seaSurfaceTemps && i < seaSurfaceTemps.length && seaSurfaceTemps[i] != null) ? Number(seaSurfaceTemps[i]) : null;
+        const weatherCodeVal = (weatherCodes && i < weatherCodes.length && weatherCodes[i] != null) ? Number(weatherCodes[i]) : null;
         forecast.push({
             hour,
             dateLabel,
             speed: Number(windSpeeds[i] ?? 0),
             gusts: Number(windGusts[i] ?? windSpeeds[i] ?? 0),
             temp: Math.round(Number(temperatures[i] ?? 0) * 10) / 10,
+            weatherCode: weatherCodeVal,
+            weatherIcon: weatherCodeVal != null ? (WMO_WEATHER_ICONS[weatherCodeVal] ?? '❓') : null,
             cape: capeVal,
             waveHeight: waveHeightVal,
             seaSurfaceTemp: seaSurfaceVal,
@@ -134,13 +153,13 @@ async function fetchWeatherForCoords(lat, lng) {
     // unabhängig davon, ob der Ort zeitlich vor oder hinter dem Betrachter liegt.
     const start = new Date(Date.now() - 24 * 3600 * 1000);
     const end = new Date(Date.now() + (FORECAST_HOURS + 48) * 3600 * 1000);
-    const cacheKey = `weather:${lat.toFixed(4)}:${lng.toFixed(4)}:${start.toISOString().slice(0, 10)}:${end.toISOString().slice(0, 10)}`;
+    const cacheKey = `weather:v2:${lat.toFixed(4)}:${lng.toFixed(4)}:${start.toISOString().slice(0, 10)}:${end.toISOString().slice(0, 10)}`;
     const cached = getCachedResponse(cacheKey);
     if (cached) return cached;
     const url = new URL('https://api.open-meteo.com/v1/forecast');
     url.searchParams.set('latitude', String(lat));
     url.searchParams.set('longitude', String(lng));
-    url.searchParams.set('hourly', 'temperature_2m,windspeed_10m,winddirection_10m,windgusts_10m,cape');
+    url.searchParams.set('hourly', 'temperature_2m,windspeed_10m,winddirection_10m,windgusts_10m,cape,weather_code');
     url.searchParams.set('current_weather', 'true');
     url.searchParams.set('windspeed_unit', 'kmh');
     url.searchParams.set('timezone', 'auto');
