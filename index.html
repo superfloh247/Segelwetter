@@ -9,6 +9,17 @@
     <link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180">
     <title>Segelwetter – Wettervorhersage für Segler</title>
     <meta name="description" content="Segelwetter: Wettervorhersage für Segler mit interaktiver Karte, Wind, Böen, Wellen und Segelberatung für Catamaran und Jolle.">
+    <script>
+        // Theme-Bootstrap: setzt data-theme, bevor der erste Paint erfolgt
+        // (verhindert Light-Mode-Blitz im Dark Mode). Vollständiges Theme-Handling: theme.js.
+        (function () {
+            try {
+                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                }
+            } catch (e) { /* ältere Browser: Light Mode bleibt Default */ }
+        })();
+    </script>
     <link rel="canonical" href="https://github.com/superfloh247/Segelwetter">
     <meta property="og:title" content="Segelwetter – Wettervorhersage für Segler">
     <meta property="og:description" content="Wettervorhersage für Segler mit interaktiver Karte, Wind, Böen, Wellen und Segelberatung.">
@@ -160,6 +171,7 @@
     <script src="i18n.en.js"></script>
     <script src="i18n.de.js"></script>
     <script src="i18n.js"></script>
+    <script src="theme.js"></script>
     <script src="weather.js"></script>
     <script src="tides.js"></script>
     <script src="api.js"></script>

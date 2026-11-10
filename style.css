@@ -15,6 +15,8 @@
 @font-face { font-family: 'Inter'; font-style: normal; font-weight: 900; font-display: swap; src: url('fonts/Inter-Black.woff2') format('woff2'); }
 
 :root {
+    /* Light Mode (Default). Dark Mode überschreibt dieselben Tokens in
+       :root[data-theme="dark"] weiter unten – siehe docs/theme.md. */
     /* Primary palette */
     --color-primary: #1e3c72;
     --color-primary-dark: #2a5298;
@@ -32,6 +34,8 @@
     /* Backgrounds */
     --bg-card: rgba(255, 255, 255, 0.95);
     --bg-card-solid: var(--color-white);
+    --bg-surface: var(--color-white);
+    --bg-input: var(--color-white);
     --bg-header: rgba(30, 60, 114, 0.95);
     --bg-header-muted: rgba(30, 60, 114, 0.08);
     --bg-even-row: rgba(245, 245, 245, 0.85);
@@ -63,6 +67,10 @@
     --forecast-gust-18-30: rgb(255, 170, 130);
     --forecast-gust-30: rgb(255, 115, 115);
 
+    /* Forecast cell colors – tide extremes */
+    --forecast-tide-high: #bfe3ff;
+    --forecast-tide-low: #dbe9d8;
+
     /* Forecast cell text colors (on colored backgrounds) */
     --forecast-cell-text-strong: #111;
     --forecast-cell-text: #222;
@@ -92,6 +100,94 @@
 
     /* Focus ring */
     --shadow-focus-ring: 0 0 0 3px rgba(30, 60, 114, 0.1);
+}
+
+/* Dark Mode – wird durch data-theme="dark" auf <html> aktiviert
+   (gesetzt per prefers-color-scheme-Bootstrap in index.html + Sync in theme.js).
+   Nur Token-Overrides: sämtliche Regeln weiter unten bleiben unverändert.
+   Die Wind-/Böen-Cell-Farben sind beidseitig gleich – Textfarbe pro Band. */
+:root[data-theme="dark"] {
+    /* Primary palette (hellere Blautöne für Kontrast auf dunklem Grund) */
+    --color-primary: #5b96e8;
+    --color-primary-dark: #3564b8;
+    --color-primary-light: #7ab3f2;
+    --color-accent-blue: #6cc0ff;
+
+    /* Text colors */
+    --color-text: #e6eaf2;
+    --color-text-secondary: #a7b3c9;
+    --color-text-dark: #dfe7f5;
+    --color-text-heading: #eaf0fb;
+    --color-text-body: #ccd6e8;
+    --color-white: #ffffff;
+
+    /* Backgrounds */
+    --bg-card: rgba(24, 30, 45, 0.95);
+    --bg-card-solid: #1b2234;
+    --bg-surface: #1b2234;
+    --bg-input: #12182a;
+    --bg-header: rgba(12, 16, 28, 0.95);
+    --bg-header-muted: rgba(255, 255, 255, 0.08);
+    --bg-even-row: rgba(255, 255, 255, 0.05);
+    --bg-selected-column: rgba(255, 214, 10, 0.22);
+    --bg-overlay-dark: rgba(2, 6, 18, 0.78);
+
+    /* Borders */
+    --border-card: rgba(255, 255, 255, 0.16);
+    --border-subtle: rgba(255, 255, 255, 0.12);
+    --border-input: rgba(255, 255, 255, 0.22);
+    --border-table: rgba(255, 255, 255, 0.1);
+
+    /* Danger */
+    --color-danger: #ff6b6b;
+    --bg-danger-subtle: rgba(255, 107, 107, 0.18);
+    --bg-error: rgba(255, 107, 107, 0.12);
+
+    /* Forecast cell text colors – helle Bands: dunkler Text;
+       die dunklen Bands (orange/rot) brauchen hellen Text – siehe Regel unten. */
+    --forecast-cell-text-strong: #1a2030;
+    --forecast-cell-text: #1a2030;
+
+    /* Shadows */
+    --shadow-card: 0 24px 40px rgba(0, 0, 0, 0.45);
+    --shadow-marker: 0 8px 20px rgba(0, 0, 0, 0.5);
+    --shadow-header: 0 2px 4px rgba(0, 0, 0, 0.35);
+    --shadow-card-subtle: 0 8px 20px rgba(0, 0, 0, 0.35);
+    --shadow-modal: 0 24px 60px rgba(0, 0, 0, 0.6);
+    --shadow-install: 0 24px 60px rgba(0, 0, 0, 0.5);
+
+    /* Spinner */
+    --spinner-track: rgba(255, 255, 255, 0.24);
+
+    /* Footer / subtle backgrounds */
+    --bg-footer-muted: rgba(255, 255, 255, 0.08);
+
+    /* Focus ring */
+    --shadow-focus-ring: 0 0 0 3px rgba(91, 150, 232, 0.35);
+}
+
+:root[data-theme="dark"] .forecast-cell-wind-15-30,
+:root[data-theme="dark"] .forecast-cell-gust-18-30,
+:root[data-theme="dark"] .forecast-cell-gust-30,
+:root[data-theme="dark"] .forecast-cell-wind-30 {
+    color: #fdf2ec;
+}
+
+/* Dark Mode – Leaflet-Kontrollen (Zoom + Attribution) auf dunklem Grund.
+   Leaflet.css wird nach style.css geladen und braucht !important. */
+:root[data-theme="dark"] .leaflet-control-zoom a {
+    background: var(--bg-card-solid) !important;
+    color: var(--color-text) !important;
+    border-color: var(--border-table) !important;
+}
+
+:root[data-theme="dark"] .leaflet-control-attribution {
+    background: rgba(24, 30, 45, 0.85) !important;
+    color: var(--color-text-secondary) !important;
+}
+
+:root[data-theme="dark"] .leaflet-control-attribution a {
+    color: var(--color-accent-blue) !important;
 }
 
 * {
@@ -362,8 +458,8 @@ body {
 }
 
 /* Tide extremes (m) – forecast table cells */
-.forecast-cell-tide-high { background: #bfe3ff; color: var(--forecast-cell-text-strong); font-weight: 600; }
-.forecast-cell-tide-low { background: #dbe9d8; color: var(--forecast-cell-text-strong); font-weight: 600; }
+.forecast-cell-tide-high { background: var(--forecast-tide-high); color: var(--forecast-cell-text-strong); font-weight: 600; }
+.forecast-cell-tide-low { background: var(--forecast-tide-low); color: var(--forecast-cell-text-strong); font-weight: 600; }
 
 /* Empty forecast state */
 .forecast-empty {
@@ -615,7 +711,7 @@ footer {
 
 .ios-install-content {
     position: relative;
-    background: var(--color-white);
+    background: var(--bg-surface);
     border-radius: var(--radius-lg);
     padding: 2rem 1.5rem;
     max-width: 320px;
@@ -781,7 +877,7 @@ footer {
 }
 
 .modal-content {
-    background: var(--color-white);
+    background: var(--bg-surface);
     border-radius: var(--radius-lg);
     padding: 2rem 1.5rem;
     max-width: 360px;
@@ -801,6 +897,7 @@ footer {
     width: 100%;
     padding: 0.75rem 1rem;
     border: 1px solid var(--border-input);
+    background: var(--bg-input);
     border-radius: var(--radius-sm);
     font-size: 1rem;
     margin-bottom: 1rem;

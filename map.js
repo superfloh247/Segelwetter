@@ -70,6 +70,9 @@ function setupMap() {
     mapInstance = L.map('map', {
         doubleClickZoom: false
     }).setView([lat, lng], 12);
+    // Kacheln bleiben in beiden Themes hell (OSM): CARTO-Dark-Tiles
+    // benötigen einen API-Key und sind daher bewusst nicht eingebunden
+    // (Leaflet-Controls werden stattdessen in style.css dunkel umgestylt).
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
     }).addTo(mapInstance);

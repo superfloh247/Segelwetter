@@ -11,6 +11,7 @@ async function initApp() {
     }
     renderBookmarks();
     setupBookmarkDelegation();
+    initTheme();
     setupMap();
     setupModalHandlers();
     setupPullToRefresh();
