@@ -579,13 +579,103 @@ const GEO_POINTS = [
         assert.ok(avg.count >= 1 && avg.count <= 8, `Wasser-Punkte im 3x3-Umfeld (hatte ${avg && avg.count})`);
         assert.ok(Number.isFinite(avg.amps.M2) && avg.amps.M2 > 0, 'M2-Amplitude plausibel');
         assert.ok(Object.keys(avg.amps).length === 17, 'alle 17 Konstituenten gemittelt');
-        const ext = await mod.predictTideExtremes(coast.lat, coast.lon, Date.now(), Date.now() + 86400000);
+        const ext = await mod.predictTideExtremes(coast.lat, coast.lon, Date.now(), Date.now() + 86400000, { isMarine: true });
         assert.ok(Array.isArray(ext) && ext.length >= 3, `Nachbar-Mittel liefert Extreme (hatte ${ext && ext.length})`);
+        // Ohne Marine-Gate bleibt derselbe Küsten-Landpunkt null (Fallback-Gate).
+        const noGate = await mod.predictTideExtremes(coast.lat, coast.lon, Date.now(), Date.now() + 86400000);
+        assert.strictEqual(noGate, null, 'ohne isMarine: Fallback inaktiv → null');
         // Offener Ozean (Wasser am Center) nutzt keine Nachbarschaft; Binnenland -> null.
         const ocean = await mod.predictTideExtremes(54.5, 1.0, Date.now(), Date.now() + 86400000);
         assert.ok(Array.isArray(ocean) && ocean.length >= 3, 'Offener Ozean liefert Extreme');
         const inland = await mod.predictTideExtremes(51.0, 10.5, Date.now(), Date.now() + 86400000);
         assert.strictEqual(inland, null, 'Binnenland -> null');
+    });
+
+    // 18b) EOT20_NEIGHBOR_AVERAGE: Marine-Gate + Fallback-Quellen-Metadaten.
+    //     Reale Land-Maske-Punkte mit Wasser-Nachbarn (Probe tmp/eot-fallback-probe.js,
+    //     Snapshot v1):
+    //       MULTI  (35.75N, 0E)    – Landzelle an der GIBRALTAR-STR., 3x3 überspannt
+    //                                 den Datumsrand (359.875°/0.125°) + 2 Tiles
+    //       DLINE  (5.25N, 359.125E) – Landzelle am DATUMSRAND, 4 Wasser-Nachbarn
+    //       CORNER (35N, 25E)      – Landzelle exakt auf einer 5°x5°-FLIESEN-ECKE
+    //                                 (4 Tiles), Nachbarpunkte liegen bis 0.25° über
+    //                                 die eigene Blockkante (discoverTileRecords latPad)
+    //     Geprüft: (a) ohne Marine-Gate null, (b) mit isMarine=true → Extreme mit
+    //     source 'EOT20_NEIGHBOR_AVERAGE' und Spreading >= minSpread, (c) Binnenland
+    //     (Müggelsee) bleibt auch mit isMarine=true null (Maske 0 ohne Wasser).
+    await test('EOT20_NEIGHBOR_AVERAGE: Marine-Gate, Quellen-Metadaten, Rand-Koordinaten', async () => {
+        const fetchEnv = makeFetchEnvironment();
+        const mod = loadModule({ indexedDB: null, fetch: fetchEnv.fetch });
+        await mod.ensureIndex();
+        const startMs = Date.UTC(2026, 10, 2, 0, 0, 0);
+        const endMs = Date.UTC(2026, 10, 2, 23, 59, 59);
+        const points = [
+            { id: 'MULTI', lat: 35.75, lon: 0 },
+            { id: 'DLINE', lat: 5.25, lon: 359.125 },
+            { id: 'CORNER', lat: 35, lon: 25 }
+        ];
+        for (const p of points) {
+            // Center-Punkt ist Land (Maske 0) – sonst wäre der Fallback überflüssig
+            const tiles = await mod.loadTilesForLocation(p.lat, p.lon);
+            assert.strictEqual(mod.constituentsAt(p.lat, p.lon, tiles), null, `${p.id}: Center ist Land (Maske 0)`);
+            // (a) Ohne Marine-Gate: kein Fallback -> null
+            const noGate = await mod.predictTideExtremes(p.lat, p.lon, startMs, endMs);
+            assert.strictEqual(noGate, null, `${p.id}: ohne isMarine muss null sein (Gate)`);
+            // (b) Mit Marine-Gate: Fallback aktiv, source-Metadaten korrekt
+            const res = await mod.predictTideExtremes(p.lat, p.lon, startMs, endMs, { isMarine: true, sourceMetadata: true });
+            assert.ok(res && Array.isArray(res.extremes), `${p.id}: mit isMarine liefert Fallback Extreme`);
+            assert.strictEqual(res.source, 'EOT20_NEIGHBOR_AVERAGE', `${p.id}: source-Metadaten`);
+            assert.ok(res.extremes.length >= 3, `${p.id}: min. 3 Extreme in 24 h (hatte ${res.extremes.length})`);
+            let lo = Infinity, hi = -Infinity;
+            for (const e of res.extremes) { if (e.level < lo) lo = e.level; if (e.level > hi) hi = e.level; }
+            assert.ok(hi - lo >= 0.03, `${p.id}: Fallback-Spreizung ${(hi - lo).toFixed(3)} m >= 0.03 m`);
+        }
+        // (c) Binnenland: Maske 0 UND keine Wasser-Nachbarn -> null, auch mit isMarine=true
+        const lake = await mod.predictTideExtremes(52.443354, 13.675345, startMs, endMs, { isMarine: true });
+        assert.strictEqual(lake, null, 'Müggelsee (Binnensee) bleibt null trotz isMarine');
+        // (d) Direkte Wasser-Punkte brauchen kein Gate (Küstenmasken-Genauigkeit)
+        const direct = await mod.predictTideExtremes(26.846495, 33.984253, startMs, endMs, { sourceMetadata: true });
+        assert.ok(direct && Array.isArray(direct.extremes), 'Soma Bay (Wasser-Maske 1) ohne Gate');
+        assert.strictEqual(direct.source, 'EOT20', 'direkter Wasser-Punkt hat source EOT20');
+    });
+
+    // 18c) Zirkular-Mittel-Korrektheit: gleichstarke, 180° gegenphasige
+    //     Konstituenten löschen sich exakt auf Amplitude 0 (resultierende
+    //     Summe); gleichphasige behalten ihre Amplitude; Phasen-0/360-Umlauf
+    //     (359° und 1°) mitteln auf 0°, nicht auf 180° (arithmetisches Mittel).
+    await test('Zirkular-Mittel: 180°-Auslöschung und Phasen-0/360-Umlauf', async () => {
+        const mod = loadModule({ indexedDB: null, fetch: makeFetchEnvironment().fetch });
+        await mod.ensureIndex();
+        // 3x3-Synthese-Fliese: 4 Ecken = Wasser (A=50 cm), Kanten + Center = Land.
+        // surroundingGridPoints(0.125,0.125) liefert exakt die 4 Ecken (Center=(1,1)=Land).
+        const mkTile = (phases) => ({
+            lat0: 0, latStep: 0.125, lon0: 0, lonStep: 0.125, nLat: 3, nLon: 3,
+            mask: new Uint8Array([1, 0, 1, 0, 0, 0, 1, 0, 1]),
+            amps: { M2: new Float32Array([50, 0, 50, 0, 0, 0, 50, 0, 50]) },
+            phases: { M2: new Float32Array(phases) }
+        });
+        const run = (phases) => {
+            const avg = mod.averagedConstituentsInNeighborhood(0.125, 0.125, [mkTile(phases)]);
+            return { amp: avg.amps.M2, phase: avg.phases.M2, count: avg.count };
+        };
+        // 1) Gleichphasig (0°): Amplitude bleibt 50, Phase 0
+        let r = run([0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        assert.ok(r.count === 4, `4 Wasser-Nachbarn (hatte ${r.count})`);
+        assert.ok(Math.abs(r.amp - 50) < 1e-3, `gleichphasig: A=50 behalten (hatte ${r.amp.toFixed(4)})`);
+        assert.ok(Math.abs(r.phase) < 1e-3, `gleichphasig: Phase 0 (hatte ${r.phase.toFixed(4)})`);
+        // 2) 180° gegenphasig (30°/210°): resultierende Summe = 0 (Auslöschung)
+        r = run([30, 30, 30, 30, 30, 30, 210, 210, 210]);
+        assert.ok(Math.abs(r.amp) < 1e-3, `180° gegenphasig: A->0 Auslöschung (hatte ${r.amp.toFixed(4)})`);
+        // 3) 90°/270° gegenphasig (Quadrantenvorzeichen): ebenfalls Auslöschung
+        r = run([90, 90, 90, 90, 90, 90, 270, 270, 270]);
+        assert.ok(Math.abs(r.amp) < 1e-3, `90/270 gegenphasig: A->0 (hatte ${r.amp.toFixed(4)})`);
+        // 4) Phasen-0/360-Umlauf: 359° und 1° sind nur 2° auseinander, Mittel = 0°.
+        //    Arithmetisches Grad-Mittel würde 180° liefern (falsch); Zirkular-Mittel 0°.
+        //    Amplitude = 2·A·cos(1°)/2 ≈ 50 (leichte Absenkung um cos(1°)).
+        r = run([359, 359, 359, 359, 359, 359, 1, 1, 1]);
+        assert.ok(Math.abs(r.phase) < 1e-3, `0/360-Umlauf: Phase 0 (hatte ${r.phase.toFixed(4)})`);
+        const expectAmp = 50 * Math.cos(1 * Math.PI / 180);
+        assert.ok(Math.abs(r.amp - expectAmp) < 1e-2, `0/360-Umlauf: A≈${expectAmp.toFixed(2)} (hatte ${r.amp.toFixed(4)})`);
     });
     // 18c) surroundingGridPoints: 8 Punkte, Center ausgeschlossen, Ränder sauber.
     await test('surroundingGridPoints liefert 8 Punkte ohne Center und respektiert Ränder', async () => {
@@ -608,6 +698,15 @@ const GEO_POINTS = [
         // Polrand: bei 90°N gibt es keine Zeile darüber – weniger als 8 Punkte.
         const polar = mod.surroundingGridPoints(89.99, 10);
         assert.ok(polar.length < 8, 'Polrand liefert weniger Punkte');
+        // Datumsrand: der Ring schließt um – 359.9° hat West-Nachbar 359.75°,
+        // 0.0° hat West-Nachbar 359.875° (kein Punkt geht verloren).
+        const ringA = mod.surroundingGridPoints(10, 359.875);
+        assert.ok(ringA.length === 8, '359.875° liefert 8 Punkte');
+        assert.ok(ringA.some(p => Math.abs(p.lon - 359.75) < 1e-9), 'West-Nachbar 359.75° vorhanden');
+        const ringB = mod.surroundingGridPoints(10, 0);
+        assert.ok(ringB.length === 8, '0° liefert 8 Punkte');
+        assert.ok(ringB.some(p => Math.abs(p.lon - 359.875) < 1e-9), 'West-Nachbar 359.875° vorhanden (Ringschließung)');
+        assert.ok(!ringB.some(p => p.lon > 0.001 && p.lon < 0.09), 'kein Phantom-Punkt zwischen 0 und 0.125°');
     });
     await test('EOT-008: Küsten-/Land-Punkt ohne Fliese liefert null (kein Crash)', async () => {
         const fetchEnv = makeFetchEnvironment();
@@ -695,8 +794,12 @@ const GEO_POINTS = [
                 }
                 assert.strictEqual(centerMask, p.mask, `${label}: Zentrums-Maske ${centerMask} != erwartet ${p.mask}`);
                 assert.strictEqual(water, p.waterIn3x3, `${label}: Wasser in 3x3 ${water} != erwartet ${p.waterIn3x3}`);
-                // Gezeiten-Verhalten: LAND → null; MARINE → Extreme mit Spreading
-                const ext = await mod.predictTideExtremes(p.lat, p.lon, startMs, endMs);
+                // Gezeiten-Verhalten: LAND → null; MARINE → Extreme mit Spreading.
+                // Wie in api.js: MARINE (Ozean via Open-Meteo wave_height) →
+                // isMarine:true, damit der Nachbar-Mittel-Fallback für Küsten-
+                // Landmasken (Esquinzo/Salzhaff) greift; LAND → ohne Gate.
+                const ext = await mod.predictTideExtremes(p.lat, p.lon, startMs, endMs,
+                    p.klass === 'MARINE' ? { isMarine: true } : undefined);
                 if (p.klass === 'LAND') {
                     assert.strictEqual(ext, null, `${label}: LAND-Punkt muss null liefern, hatte ${ext && ext.length} Extreme`);
                 } else {

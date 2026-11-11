@@ -316,20 +316,34 @@ function normalizeEotLon(lon) {
 // Index-Records, die den Punkt (mit 0.25° Puffer) abdecken – datengrenzen-korrekt
 // (App-Längengrade −180..180, Index 0..360, Antipoden-Umlauf bei 180°).
 // Liefert Index-Records, keine dekodierten Fliesen (siehe loadTilesForLocation).
+// Der Längengrad-Puffer deckt den 3x3-Fallback-Rand ab (max. 0.125° vom
+// Center-Punkt). Der Breitengrad-Puffer zusätzlich: an einer 5°-Fliesen-Ecke
+// (Breitengrad = k·5°) ragen die Nachbarpunkte bis 0.25° über die eigene
+// Blockkante hinaus und liegen in den benachbarten 5°-Blöcken.
 function discoverTileRecords(lat, lon) {
     if (!EOT.index) return [];
     const clat = Math.max(-90, Math.min(90, Number(lat)));
     const clon = normalizeEotLon(lon);
     const pad = 0.25;
+    const latPad = 0.25; // 0.25° = 2·0.125°, Fallback-Rand über Fliesen-Ecken
     const lo = clon - pad;
     const hi = clon + pad;
-    return EOT.index.tiles.filter(t => {
-        if (clat < t.latMin - 1e-9 || clat > t.latMax + 1e-9) return false;
-        for (let k = -1; k <= 1; k++) {
-            if (lo + 360 * k <= t.lonMax && hi + 360 * k >= t.lonMin) return true;
+    const seen = new Set();
+    const recs = [];
+    for (const cl of [clat, clat - latPad, clat + latPad]) {
+        for (const t of EOT.index.tiles) {
+            if (seen.has(t.id)) continue;
+            if (cl < t.latMin - 1e-9 || cl > t.latMax + 1e-9) continue;
+            for (let k = -1; k <= 1; k++) {
+                if (lo + 360 * k <= t.lonMax && hi + 360 * k >= t.lonMin) {
+                    seen.add(t.id);
+                    recs.push(t);
+                    break;
+                }
+            }
         }
-        return false;
-    });
+    }
+    return recs;
 }
 
 async function loadTilesForLocation(lat, lon) {
@@ -387,6 +401,10 @@ function constituentsAt(lat, lon, tiles) {
 // Amplitude und Phase (Winkel-Mittel über die Sinus-Komponente) gemittelt.
 
 // Die 8 Gitterpunkte im 3x3-Umfeld des nächsten Gitterpunkts zu (lat, lon).
+// Der Längengrad-Ring schließt um (Datumsrand: 359.9° → 359.75°, 0° → 359.875°),
+// der Breitengrad nicht (Pole). Die Fliesen-Auflösung der Punkte übernimmt
+// averagedConstituentsInNeighborhood (die Fliesen müssen geladen sein, s.
+// loadTilesForLocation mit 0.25°-Puffer).
 function surroundingGridPoints(lat, lon) {
     const step = 0.125; // EOT20-Gitterabstand
     const clat = Math.max(-90, Math.min(90, lat));
@@ -397,8 +415,9 @@ function surroundingGridPoints(lat, lon) {
     for (let di = -1; di <= 1; di++) {
         for (let dj = -1; dj <= 1; dj++) {
             if (di === 0 && dj === 0) continue;
-            const ni = i + di, nj = j + dj;
-            if (ni < 0 || ni > 1440 || nj < 0 || nj > 2880) continue; // Pol-/Datumsrand
+            const ni = i + di;
+            if (ni < 0 || ni > 1440) continue; // Polrand: kein Nachbar
+            const nj = ((j + dj) % 2880 + 2880) % 2880; // Ring schließt um
             pts.push({ lat: -90 + step * ni, lon: (step * nj) % 360 });
         }
     }
@@ -406,10 +425,14 @@ function surroundingGridPoints(lat, lon) {
 }
 
 // Konstituenten-Mittel über alle Wasser-Punkte (Maske 1) der Umgebungspunkte.
+// Komplexe (Zirkular-)Mittelung der Konstituenten ẑ = A·e^{iφ}:
+// Amplitude = |Σ A·e^{iφ}|/n, Phase = arg(Σ A·e^{iφ}) – korrekt bei
+// Phasen um 0°/360° UND bei Phasenstreusung (180°-Auslöschung → Amplitude 0,
+// wie bei einer echten resultantiven Konstituenten-Summe).
 // Gibt null zurück, wenn in der Nachbarschaft kein einziger Wasser-Punkt liegt
 // (dann bleibt die Vorhersage null – echtes Binnenland).
 function averagedConstituentsInNeighborhood(lat, lon, tiles) {
-    const sums = {};   // name -> { a, s, c, n }
+    const sums = {};   // name -> { s, c, n } (Sinus-/Cosinus-Zusammenfassung von A·e^{iφ})
     let count = 0;
     for (const p of surroundingGridPoints(lat, lon)) {
         let tile = null;
@@ -429,8 +452,7 @@ function averagedConstituentsInNeighborhood(lat, lon, tiles) {
             const a = tile.amps[name][idx];
             const phi = tile.phases[name][idx] * EOT_D2R;
             let s = sums[name];
-            if (!s) { s = { a: 0, s: 0, c: 0, n: 0 }; sums[name] = s; }
-            s.a += a;
+            if (!s) { s = { s: 0, c: 0, n: 0 }; sums[name] = s; }
             s.s += a * Math.sin(phi);
             s.c += a * Math.cos(phi);
             s.n += 1;
@@ -441,7 +463,9 @@ function averagedConstituentsInNeighborhood(lat, lon, tiles) {
     const phases = {};
     for (const name in sums) {
         const s = sums[name];
-        amps[name] = s.a / s.n;
+        // Resultierende Amplitude (Betrag der komplexen Summe), nicht arithmetisches Mittel:
+        // zwei gleichstarke, 180° gegenphasige Konstituenten löschen sich auf 0.
+        amps[name] = Math.hypot(s.s, s.c) / s.n;
         // Winkel-Mittel: arctan(Σ a·sinφ, Σ a·cosφ) – korrekt bei Phasen um 0°/360°
         phases[name] = Math.atan2(s.s, s.c) / EOT_D2R;
     }
@@ -646,16 +670,28 @@ function eotFindExtremes(amps, phases, startMs, endMs) {
 // Workaround: Fehlt Gezeiten-Daten am Gitterpunkt (Land-Maske), aber es liegt
 // Wasser in der Nachbarschaft (z. B. Inlandssee), so werden die 8 umliegenden
 // Gitterboxen gemittelt (s. averagedConstituentsInNeighborhood).
-// Gibt null bei echtem Land (keine Wasser-Nachbarschaft)/keinen Daten
-// (UI zeigt dann keine Gezeitenzeile).
+// Marine-Gate: Der Fallback (8er-Mittelung) greift nur, wenn opts.isMarine
+// wahr ist – d. h. Open-Meteo meldet eine valide Wellenhöhe am Ort
+// (marines Raster vs. Land). Ohne Gate würden Binnenwasser (Seen) mit
+// Ozeangezeiten belegt. Direkte Wasser-Gitterpunkte (Maske 1) bleiben
+// ungated – die Küsten-Maske ist grob, echte Küstenorte (z. B. Elbe-Mündung)
+// dürfen ihre Gezeiten behalten.
+// Gibt null bei echtem Land (kein Marine-Gate / keine Wasser-Nachbarschaft)
+// oder ohne Daten (UI zeigt dann keine Gezeitenzeile).
+// opts.sourceMetadata: wenn gesetzt, bekommt der Rückgabewert die Form
+// [{ extremes, source }], damit der Aufrufer Herkunft kennt
+// (source = 'EOT20' | 'EOT20_NEIGHBOR_AVERAGE').
 async function predictTideExtremes(lat, lon, startMs, endMs, opts) {
     opts = opts || {};
     try {
         const tiles = await loadTilesForLocation(lat, lon);
         let c = constituentsAt(lat, lon, tiles);
+        let source = 'EOT20';
         if (!c || !c.amps || Object.keys(c.amps).length === 0) {
+            if (!opts.isMarine) return null; // Land ohne Wellenhöhe → kein Fallback
             c = averagedConstituentsInNeighborhood(lat, lon, tiles);
             if (!c) return null;
+            source = 'EOT20_NEIGHBOR_AVERAGE';
         }
         const amps = {};
         for (const name in c.amps) amps[name] = c.amps[name] / 100;  // cm → m
@@ -672,13 +708,15 @@ async function predictTideExtremes(lat, lon, startMs, endMs, opts) {
         // werden. Standard: leer (nur Timestamp/level sind informativ).
         const fmtTime = opts.formatTime || (() => '');
         const fmtDate = opts.formatDate || (() => '');
-        return ext.map(e => ({
+        const mapped = ext.map(e => ({
             timestamp: e.timestamp,
             high: e.high,
             level: e.level,
             timeText: fmtTime(e.timestamp),
             timeTextDate: fmtDate(e.timestamp)
         }));
+        if (opts.sourceMetadata) return { extremes: mapped, source };
+        return mapped;
     } catch (err) {
         console.warn('EOT20: Gezeiten-Vorhersage fehlgeschlagen für', lat, lon, err);
         return null;

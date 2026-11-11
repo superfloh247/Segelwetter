@@ -199,6 +199,24 @@ async function fetchMarineData(lat, lng) {
     return response.json();
 }
 
+// Marine-Gate für den EOT20-Fallback: Wellenhöhe (Wellen-Modell) am Ort.
+// Die marine-Fenster (fetchMarineData) starten ~24 h vor "jetzt"; enthält es
+// irgendeinen endlichen wave_height-Wert, ist der Ort im marinen Raster →
+// 8er-Fallback darf für Land-Maske-Punkte Gezeiten liefern. Binnenwasser
+// (z. B. Müggelsee) hat keine Wellenhöhe → dort kein Fallback.
+// (Kein Zeit-Matching: window.start liegt in der Vergangenheit, jedes
+// endliche Element gilt als marine-Evidenz.)
+function waveHeightMarine(marineData) {
+    const heights = marineData?.hourly?.wave_height;
+    if (!Array.isArray(heights)) return null;
+    for (let i = 0; i < heights.length; i++) {
+        if (heights[i] == null) continue;
+        const v = Number(heights[i]);
+        if (Number.isFinite(v)) return v;
+    }
+    return null; // marine-Daten fehlen oder sind unbrauchbar
+}
+
 async function loadWeatherForCoords(lat, lng, locationName = null) {
     showLoadingOverlay(true);
     hideErrorBanner();
@@ -237,11 +255,19 @@ async function loadWeatherForCoords(lat, lng, locationName = null) {
                 fmtDate = ts => fmtD.format(new Date(ts));
             } catch (error) { /* unbekannter Zonenname -> lokaler Fallback */ }
             try {
-                tideExtremes = (await predictTideExtremes(lat, lng,
+                const result = (await predictTideExtremes(lat, lng,
                     Date.now(),
                     Date.now() + FORECAST_HOURS * 3600000,
-                    { formatTime: fmtTime, formatDate: fmtDate }
-                )) || [];
+                    {
+                        formatTime: fmtTime,
+                        formatDate: fmtDate,
+                        // Marine-Gate: Fallback (Land-Maske-Punkt) nur bei valider Wellenhöhe
+                        isMarine: waveHeightMarine(marineData) != null,
+                        sourceMetadata: true
+                    }
+                )) || null;
+                tideExtremes = result ? result.extremes : [];
+                weatherData.tideSource = result ? result.source : null;
             } catch (error) {
                 console.warn('EOT20: Gezeiten-Extrema nicht berechnet', error);
             }
