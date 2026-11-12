@@ -15,7 +15,7 @@ const WMO_WEATHER_ICONS = {
     95: '⛈️', 96: '⚡', 99: '🧊'
 };
 
-function buildHourlyForecastFromOpenMeteo(data, marineData) {
+function buildHourlyForecastFromOpenMeteo(data, marineData, landInfo = null) {
     const timeStrings = data.hourly?.time || [];
     const temperatures = data.hourly?.temperature_2m || [];
     const windSpeeds = data.hourly?.windspeed_10m || [];
@@ -77,8 +77,12 @@ function buildHourlyForecastFromOpenMeteo(data, marineData) {
         const dateLabel = new Date(`${timeString.slice(0, 10)}T12:00:00`).toLocaleDateString(t('dateLocale'), { weekday: 'short', day: '2-digit', month: '2-digit' });
         const directionDegrees = Number(windDirections[i] ?? 0);
         const capeVal = (capes && i < capes.length && capes[i] != null) ? Number(capes[i]) : null;
-        const waveHeightVal = (waveHeights && i < waveHeights.length && waveHeights[i] != null) ? Number(waveHeights[i]) : null;
-        const seaSurfaceVal = (seaSurfaceTemps && i < seaSurfaceTemps.length && seaSurfaceTemps[i] != null) ? Number(seaSurfaceTemps[i]) : null;
+        // Land-Punkt (is-on-water API): Wave-/Wasser­temperatur-Werte des
+        // Marine-Modells sind für reines Land unsinnig → unterdrücken.
+        // Fail-open: bei fehlender/unklarer Klassifikation Werte behalten.
+        const suppressMarine = !!(landInfo && landInfo.isLand);
+        const waveHeightVal = !suppressMarine && (waveHeights && i < waveHeights.length && waveHeights[i] != null) ? Number(waveHeights[i]) : null;
+        const seaSurfaceVal = !suppressMarine && (seaSurfaceTemps && i < seaSurfaceTemps.length && seaSurfaceTemps[i] != null) ? Number(seaSurfaceTemps[i]) : null;
         const weatherCodeVal = (weatherCodes && i < weatherCodes.length && weatherCodes[i] != null) ? Number(weatherCodes[i]) : null;
         forecast.push({
             hour,
@@ -230,18 +234,30 @@ async function loadWeatherForCoords(lat, lng, locationName = null) {
         preloadTideTiles(lat, lng);
     }
     try {
-        const [data, marineData] = await Promise.all([
+        // EOT20-Tiles werden in preloadTideTiles (oben) vor-gefordert. Der
+        // Land/Wasser-Check entscheidet, ob die Wave-/Wasser­temperatur- und
+        // Gezeiten-Zeilen unterdrückt werden (Land-Punkt → alles marine leer).
+        const [data, marineData, landInfo] = await Promise.all([
             fetchWeatherForCoords(lat, lng),
             fetchMarineData(lat, lng).catch(error => {
                 console.warn(t('consoleMarineFailed'), error);
                 return null;
-            })
+            }),
+            typeof fetchLandInfo === 'function'
+                ? fetchLandInfo(lat, lng).catch(error => {
+                    console.warn('[Land] Land/Wasser-Prüfung übersprungen (Werte werden angezeigt):', error);
+                    return null;
+                })
+                : Promise.resolve(null)
         ]);
         // EOT20: Hoch-/Niedrigwasser über das gesamte Prognosefenster berechnen.
         // Fehler (Land, keine Gezeiten, Lade-Ausfall) -> leer, UI versteckt die
         // Tide-Zeile dann automatisch. Nicht blockierend für die Wetter-UI.
+        // Land-Punkt (is-on-water): EOT20 ist ein Ozeanmodell – ohne Küste gibt
+        // es keine Gezeiten → Zeile wie Wellen/Wasser­temperatur unterdrücken.
+        const tideSuppressed = !!(landInfo && landInfo.isLand);
         let tideExtremes = [];
-        if (typeof predictTideExtremes === 'function') {
+        if (!tideSuppressed && typeof predictTideExtremes === 'function') {
             const zone = data.timezone;
             const tideLocale = t('dateLocale');
             let fmtTime = ts => new Date(ts).toISOString().slice(11, 16);
@@ -272,6 +288,9 @@ async function loadWeatherForCoords(lat, lng, locationName = null) {
                 console.warn('EOT20: Gezeiten-Extrema nicht berechnet', error);
             }
         }
+        if (tideSuppressed) {
+            weatherData.tideSource = null;
+        }
         weatherData.tideExtremes = tideExtremes;
         const current = data.current_weather || {};
         weatherData.temperature = Number(current.temperature ?? (data.hourly?.temperature_2m?.[0] ?? 0));
@@ -279,7 +298,7 @@ async function loadWeatherForCoords(lat, lng, locationName = null) {
         weatherData.wind.directionDegrees = Number(current.winddirection ?? (data.hourly?.winddirection_10m?.[0] ?? 0));
         weatherData.wind.direction = degreesToDirection(weatherData.wind.directionDegrees);
         weatherData.wind.gusts = Number(current.windgust ?? (data.hourly?.windgusts_10m?.[0] ?? weatherData.wind.speed));
-        weatherData.hourlyForecast = buildHourlyForecastFromOpenMeteo(data, marineData);
+        weatherData.hourlyForecast = buildHourlyForecastFromOpenMeteo(data, marineData, landInfo);
         displayWeather(weatherData);
         displayHourlyForecast();
         updateSailingAdvice();
